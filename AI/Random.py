@@ -131,9 +131,51 @@ class AIPlayer(Player):
 
 
     def analyzeGameState(self, gameState):
+        myAnts = len(getAntList(gameState,gameState.whoseTurn(),(QUEEN, WORKER, DRONE,SOLDIER,R_SOLDIER)))
+        numFood = len(getCurrPlayerFood(gameState))
+        numWorkers = len(getAntList(gameState,gameState.whoseTurn(),(WORKER,)))
+
+
 
 
 
 
         return 1.0
+
+
+    def analyzeNodes(self, listNodes):
+
+        for node in listNodes:
+            pass
+
+
+
+    def recursion(self, gameState, currentDepth):
+
+        if currentDepth > 3:
+            return
+        
+        list = listAllLegalMoves()
+        gameStateList = []
+        iter = 0
+        for move in list:
+            if move.moveType == "END_TURN":
+                del iter
+            gameStateList.append(getNextState(gameState, move))
+            iter += 1
+        iter = 0
+
+
+        newGameState = gameState
+        currentDepth += 1
+        return self.recursion(newGameState,currentDepth, bestState)
+        pass
+
+class node:
+
+    def __init__(self):
+        self.move = None
+        self.state = None
+        self.score = None
+        self.parent = None
 
