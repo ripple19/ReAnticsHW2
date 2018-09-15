@@ -143,32 +143,52 @@ class AIPlayer(Player):
         return 1.0
 
 
-    def analyzeNodes(self, listNodes):
+    def analyzeNodes(self, listNodes, gameState):
 
+        bestNode = None
         for node in listNodes:
-            pass
+            node.score = self.analyzeGameState(self, node.state)
+
+        bigNum = -1.0
+        for node in listNodes:
+            if node.score > bigNum:
+                bestNode = node
+                bigNum = node.score
+
+        while bestNode.depth > 1:
+            bestNode = bestNode.parent
+
+        return bestNode
 
 
 
-    def recursion(self, gameState, currentDepth):
 
-        if currentDepth > 3:
-            return
-        
-        list = listAllLegalMoves()
+
+    def recursion(self, gameState, currentDepth, list):
+
+        moveList = listAllLegalMoves(gameState)
         gameStateList = []
+
         iter = 0
-        for move in list:
+        for move in moveList:
             if move.moveType == "END_TURN":
                 del iter
             gameStateList.append(getNextState(gameState, move))
+            nodeList = nodeList.append(self, node)
+            nodeList[iter].parent = gameState
+            nodeList[iter].state = gameStateList[iter]
+            nodeList[iter].depth = currentDepth
+            nodeList[iter].move = move
             iter += 1
         iter = 0
 
+        self.analyzeNodes(self, nodeList, gameState)
+        iter = 0
+        for thisGameState in gameStateList:
+            newGameState = gameState
+            list[iter].state = self.recursion(newGameState, currentDepth, list)
 
-        newGameState = gameState
         currentDepth += 1
-        return self.recursion(newGameState,currentDepth, bestState)
         pass
 
 class node:
@@ -178,4 +198,6 @@ class node:
         self.state = None
         self.score = None
         self.parent = None
+        self.depth = None
+
 
