@@ -584,7 +584,7 @@ def getCurrPlayerQueen(currentState):
 ##
 # Return: a list of the food objects on my side of the board
 def getCurrPlayerFood(self, currentState):
-    food = getConstrList(currentState, 2, (FOOD,))
+    food = getConstrList(currentState,2, (FOOD,))
     myFood = []
     if (currentState.inventories[0].player == currentState.whoseTurn):
         myFood.append(food[2])
