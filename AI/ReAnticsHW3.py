@@ -242,44 +242,82 @@ class AIPlayer(Player):
     # Recursion function to search for the best move per depth
     def greedyGetBestMove(self, currentState, currentDepth, parentNode, isAITurn):
 
-
+        # Gain a list of all of the possible moves that can result from the
+        # current state
         moves = listAllLegalMoves(currentState)
+        # Go through all of the possible moves
         for move in moves:
 
+            # If the move type of the move causing this state is an END turn AND
+            # the node is not at the depth limit...
+                # Change the isAITurn to reflect a change of turn
+                # True = AI turn
+                # False = not AI turn
             if move.moveType == "END" and currentDepth != self.depthLimit:
                 isAITurn = not isAITurn
 
+            # BASE CASE: If the current depth has been reached (or passed?)
+                # Evaluate the state and pass up the score to its parent if it
+                # is most optimal
             if currentDepth >= self.depthLimit:
+                # Evaluate the state
+                    # Positive means good for the player whose turn it is
                 stateScore = self.evalOverall(parentNode.state)
-
+                # If it is a MIN turn and the negative of the evaluation
+                # score is less than the parent's score...
+                    # Assign the parent's score to be the negative of the
+                    # evaluation score and return
                 if not isAITurn and (-1*stateScore < parentNode.parent.score):
                     parentNode.parent.score = stateScore*-1
                     return
+                # If it is a MAX turn and the evaluation score is greater than
+                # the parent's score...
+                    # Assign the parent's score to be the evaluation score and
+                    # return
                 if isAITurn and stateScore > parentNode.parent.score:
                     parentNode.parent.score = stateScore
                     return
 
+                # If the evaluation score of the node is not the optimal choice...
+                    # Return and continue to evaluate the next node if possible
+
                 return
-                    #Add pruning variable
+
+            # If the node is not at the depth limit...
             else:
+                # Get the next (child) state from the possible moves
                 resultState = getNextState(currentState, move)
+                # Create a node object for the child node
+                # If the node is a MIN node, assign the score to be 1000 (INFINITY)
                 if not isAITurn:
                     resultNode = Node(resultState, move, 1000, parentNode, isAITurn)
+                # If the node is a MAX node, assign the score to be -1000 (-INFINITY)
                 else:
                     resultNode = Node(resultState, move, -1000, parentNode, isAITurn)
+                # Recursively call the child node
                 self.greedyGetBestMove(resultNode.state, currentDepth + 1, resultNode, isAITurn)
 
-        if currentDepth == 1:
+        # After going through all of the possible moves
+
+        # If the node is not the root node...
+            # Propagate the best score up to the parent node
+        if currentDepth > 0:
+            # If the parent is a MIN... choose the smallest score
             if not parentNode.turn and (parentNode.score < parentNode.parent.score):
                 parentNode.parent.score = parentNode.score
+                # If the node is the child of the root node...
+                    # Propagate the best move up to the root
                 if currentDepth == 1:
                     self.bestMove = parentNode.move
+            # If the parent is a MAX... choose the largest score
             elif parentNode.turn and (parentNode.score > parentNode.parent.score):
                 parentNode.parent.score = parentNode.score
+                # If the node is the child of the root node...
+                    # Propagate the best move up to the root
                 if currentDepth == 1:
                     self.bestMove = parentNode.move
 
-
+        # Return out of the recursive call of the none depth limit nodes
         return
 
 
