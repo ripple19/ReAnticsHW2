@@ -36,6 +36,7 @@ class AIPlayer(Player):
 
         # Init depth limit for recursion
         self.depthLimit = 2
+        self.bestMove = None
 
 ################################################################################
 
@@ -230,6 +231,7 @@ class AIPlayer(Player):
         totalScore += self.evalSoldierPositions(currentState) * soldierPositionWeight
         totalScore += self.evalQueenPosition(currentState) * queenPositionWeight
 
+
         ### OVERALL WEIGHTED AVERAGE ###
         # Takes the weighted average of all of the scores
         # Only the game ending scores should be 1 or -1.
@@ -238,48 +240,58 @@ class AIPlayer(Player):
         return overallScore
 
     # Recursion function to search for the best move per depth
-    def greedyGetBestMove(self, currentState, currentDepth, parentNode):
+    def greedyGetBestMove(self, currentState, currentDepth, parentNode, isAITurn):
+
 
         moves = listAllLegalMoves(currentState)
-
-        possibleNodes = []
+        if currentDepth == 1:
+            print("Current Depth is: " + str(currentDepth))
+            print("Current Turn is: " + str(isAITurn))
         for move in moves:
-            resultState = getNextState(currentState, move)
-            stateScore = self.evalOverall(resultState)
-            possibleNodes.append(Node(resultState, move, stateScore, parentNode))
 
-        # All possible nodes explored
-        if (len(possibleNodes) == 0):
-            return parentNode
+            if move.moveType == "END" and currentDepth != self.depthLimit:
+                isAITurn = not isAITurn
 
-        bestNode = self.nodeEvaluationHelper(possibleNodes)
+            if currentDepth >= self.depthLimit:
+                stateScore = self.evalOverall(parentNode.state)
+                #print("The current nodes score is: " + str(stateScore))
+                #print("The parent node score is " + str(parentNode.score))
+                if not isAITurn and (-1*stateScore < parentNode.parent.score):
+                    #print("Before assignment of NOTAITURN: " + str(parentNode.parent.score))
+                    parentNode.parent.score = stateScore*-1
+                    #print("After assignment of NOTAITURN: " + str(parentNode.parent.score))
+                    return
+                if isAITurn and stateScore > parentNode.parent.score:
+                    #print("Before assignment of AITURN: " + str(parentNode.parent.score))
+                    parentNode.parent.score = stateScore
+                    #print("After assignment of AITURN: " + str(parentNode.parent.score))
+                    return
 
-        # Base case reached.
-        if currentDepth >= self.depthLimit:
-            return bestNode
+                return
+                    #Add pruning variable
+            else:
+                resultState = getNextState(currentState, move)
+                if not isAITurn:
+                    resultNode = Node(resultState, move, 1000, parentNode, isAITurn)
+                else:
+                    resultNode = Node(resultState, move, -1000, parentNode, isAITurn)
+                self.greedyGetBestMove(resultNode.state, currentDepth + 1, resultNode, isAITurn)
 
-        bestNode = self.greedyGetBestMove(bestNode.state, currentDepth+1, bestNode)
-        return bestNode
+        if currentDepth == 1:
+            if not parentNode.turn and (parentNode.score < parentNode.parent.score):
+                print("Moving upppp")
+                parentNode.parent.score = parentNode.score
+                if currentDepth == 1:
+                    self.bestMove = parentNode.move
+            elif parentNode.turn and (parentNode.score > parentNode.parent.score):
+                print("Moving upppp2")
+                parentNode.parent.score = parentNode.score
+                if currentDepth == 1:
+                    self.bestMove = parentNode.move
 
-    # Helper function that returns the child node of the given node
-    def getChildNodes(self, parentNode):
-        moves = listAllLegalMoves(parentNode.state)
-        children = []
-        for move in moves:
-            resultState = getNextState(parentNode.state, move)
-            stateScore = self.evalOverall(resultState, parentNode.state.whoseTurn)
-            children.append(Node(resultState, move, stateScore, parentNode, parentNode.depth+1))
-        return children
 
-    # Helper function to determine the best score given  list of nodes
-    def nodeEvaluationHelper(self, nodeList):
-        maxScore = -100000 # negative infinity
-        bestNode = None
-        for node in nodeList:
-            if (node.score > maxScore):
-                bestNode = node
-                maxScore = node.score
-        return bestNode
+        return
+
 
 ################################################################################
 
@@ -348,13 +360,13 @@ class AIPlayer(Player):
     #Return: The Move to be made
     ##
     def getMove(self, currentState):
-        self.foodCoords = self.getCoordsOfListElements(getConstrList(currentState, None, (FOOD,)))
-        self.buildingCoords = self.getCoordsOfListElements(getConstrList(currentState, currentState.whoseTurn, (ANTHILL, TUNNEL)))
-        bestNode = self.greedyGetBestMove(currentState, 0, None)
+        isAITurn = True
+        self.bestMove = None
+        dummyNode = Node(currentState,None,-1000,None,isAITurn)
+        self.greedyGetBestMove(currentState, 0, dummyNode, isAITurn)
+        print(self.bestMove)
 
-        while not(bestNode.parent is None):
-            bestNode = bestNode.parent
-        return bestNode.move
+        return self.bestMove
 
     ##
     #getAttack
@@ -383,11 +395,12 @@ class AIPlayer(Player):
 # and the parent game state
 class Node:
 
-    def __init__(self, state, move, score, parent):
+    def __init__(self, state, move, score, parent, turn):
         self.state = state
         self.move = move
         self.score = score
         self.parent = parent
+        self.turn = turn
 
 
 ###########################################################################################################
