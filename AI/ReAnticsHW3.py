@@ -28,7 +28,7 @@ class AIPlayer(Player):
     #   cpy           - whether the player is a copy (when playing itself)
     ##
     def __init__(self, inputPlayerId):
-        super(AIPlayer,self).__init__(inputPlayerId, "Vewy Greedy AI <(^w^<)")
+        super(AIPlayer,self).__init__(inputPlayerId, "MinMax AI")
         ## Initialize class variables on start of program ##
 
         self.foodCoords = []
@@ -244,9 +244,6 @@ class AIPlayer(Player):
 
 
         moves = listAllLegalMoves(currentState)
-        if currentDepth == 1:
-            print("Current Depth is: " + str(currentDepth))
-            print("Current Turn is: " + str(isAITurn))
         for move in moves:
 
             if move.moveType == "END" and currentDepth != self.depthLimit:
@@ -254,17 +251,12 @@ class AIPlayer(Player):
 
             if currentDepth >= self.depthLimit:
                 stateScore = self.evalOverall(parentNode.state)
-                #print("The current nodes score is: " + str(stateScore))
-                #print("The parent node score is " + str(parentNode.score))
+
                 if not isAITurn and (-1*stateScore < parentNode.parent.score):
-                    #print("Before assignment of NOTAITURN: " + str(parentNode.parent.score))
                     parentNode.parent.score = stateScore*-1
-                    #print("After assignment of NOTAITURN: " + str(parentNode.parent.score))
                     return
                 if isAITurn and stateScore > parentNode.parent.score:
-                    #print("Before assignment of AITURN: " + str(parentNode.parent.score))
                     parentNode.parent.score = stateScore
-                    #print("After assignment of AITURN: " + str(parentNode.parent.score))
                     return
 
                 return
@@ -279,12 +271,10 @@ class AIPlayer(Player):
 
         if currentDepth == 1:
             if not parentNode.turn and (parentNode.score < parentNode.parent.score):
-                print("Moving upppp")
                 parentNode.parent.score = parentNode.score
                 if currentDepth == 1:
                     self.bestMove = parentNode.move
             elif parentNode.turn and (parentNode.score > parentNode.parent.score):
-                print("Moving upppp2")
                 parentNode.parent.score = parentNode.score
                 if currentDepth == 1:
                     self.bestMove = parentNode.move
@@ -360,11 +350,16 @@ class AIPlayer(Player):
     #Return: The Move to be made
     ##
     def getMove(self, currentState):
+        # Acquire the location of the food and the buildings for the worker
+        # position eval function
+        self.foodCoords = self.getCoordsOfListElements(getConstrList(currentState, None, (FOOD,)))
+        self.buildingCoords = self.getCoordsOfListElements(getConstrList(currentState, currentState.whoseTurn, (ANTHILL, TUNNEL)))
+
+        # Run the recursive MinMax evaluation to determine the best move
         isAITurn = True
         self.bestMove = None
         dummyNode = Node(currentState,None,-1000,None,isAITurn)
         self.greedyGetBestMove(currentState, 0, dummyNode, isAITurn)
-        print(self.bestMove)
 
         return self.bestMove
 

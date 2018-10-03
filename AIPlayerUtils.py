@@ -68,7 +68,7 @@ def getAntList(currentState,
             result.append(ant)
 
     return result
-        
+
 
 ##
 # getConstrList()
@@ -101,7 +101,7 @@ def getConstrList(currentState,
             result.append(constr)
 
     return result
-        
+
 
 ##
 # getConstrAt
@@ -180,7 +180,7 @@ def getWinner(currentState):
         return 0
 
     return None
-    
+
 
 ##
 # listAdjacent
@@ -244,11 +244,11 @@ def listAttackable(coord, dist = 1):
 # calculates all the adjacent cells that can be reached from a given coord.
 #
 # Parameters:
-#    state        - a GameState object 
+#    state        - a GameState object
 #    coords       - where the ant is
 #    movement     - movement points the ant has
 #
-# Return:  a list of coords (tuples)   
+# Return:  a list of coords (tuples)
 def listReachableAdjacent(state, coords, movement, ignoresGrass = False):
     #build a list of all adjacent cells
     oneStep = listAdjacent(coords)
@@ -497,7 +497,7 @@ def isPathOkForQueen(path):
         or (coord[1] == BOARD_LENGTH / 2):
             return False
     return True
-    
+
 ##
 # listAllMovementMoves
 #
@@ -566,9 +566,9 @@ def getCurrPlayerInventory(currentState):
         if inv.player == currentState.whoseTurn:
             resultInv = inv
             break
-        
+
     return resultInv
-    
+
 ##
 # Return: a reference to the QUEEN of the player whose turn it is
 def getCurrPlayerQueen(currentState):
@@ -594,7 +594,7 @@ def getCurrPlayerFood(self, currentState):
         myFood.append(food[1])
     return myFood
 
- 
+
 
 ##
 # Return: a reference to my enemy's inventory
@@ -603,7 +603,7 @@ def getEnemyInv(self, currentState):
         return currentState.inventories[1]
     else:
         return currentState.inventories[0]
-        
+
 ##
 # getNextState
 #
@@ -666,6 +666,21 @@ def getNextState(currentState, move):
                 ant.coords = newCoord
                 # TODO: should this be set true? Design decision
                 ant.hasMoved = False
+                # If an ant is carrying food and ends on the anthill or tunnel drop the food
+                if ant.carrying and ant.coords == myInv.getAnthill().coords:
+                    myInv.foodCount += 1
+                    ant.carrying = False
+                for tunnels in myTunnels:
+                    if ant.carrying and (ant.coords == tunnels.coords):
+                        myInv.foodCount += 1
+                        ant.carrying = False
+                # If an ant doesn't have food and ends on the food grab food
+                if not ant.carrying and ant.type == WORKER:
+                    foods = getConstrList(myGameState, 2, [FOOD])
+                    for food in foods:
+                        if food.coords == ant.coords:
+                            ant.carrying = True
+                # If my ant is close to an enemy ant attack it
                 attackable = listAttackable(ant.coords, UNIT_STATS[ant.type][RANGE])
                 for coord in attackable:
                     foundAnt = getAntAt(myGameState, coord)
@@ -710,7 +725,7 @@ def getNextStateAdversarial(currentState, move):
         nextState.whoseTurn = 1 - currentState.whoseTurn
     return nextState
 
-    
+
 ##
 # returns a character representation of a given ant
 # (helper for asciiPrintState)
