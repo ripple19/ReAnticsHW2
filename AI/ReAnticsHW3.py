@@ -35,7 +35,7 @@ class AIPlayer(Player):
         self.buildingCoords = []
 
         # Init depth limit for recursion
-        self.depthLimit = 3
+        self.depthLimit = 2
         self.bestMove = None
         self.prune = False
 
@@ -218,15 +218,17 @@ class AIPlayer(Player):
         totalScore = 0
 
         # Initialize the weights for the specific evaluation functions
-        workerCountWeight = 2
-        soldierCountWeight = 3
+        workerCountWeight = 1
+        soldierCountWeight = 2
         antDifferenceWeight = 1
-        healthDifferenceWeight = 2
-        workerPositionWeight = 1
-        soldierPositionWeight = 3
-        queenPositionWeight = 1
-        enemyQueenHealthWeight = 5
-        totalWeight = 18
+        healthDifferenceWeight = 3
+        workerPositionWeight = 2
+        soldierPositionWeight = 2
+        queenPositionWeight = 2
+        enemyQueenHealthWeight = 0
+        totalWeight = workerCountWeight+soldierCountWeight+antDifferenceWeight+\
+                                        healthDifferenceWeight+ workerPositionWeight+\
+                                        soldierPositionWeight+queenPositionWeight+enemyQueenHealthWeight
 
         # Determine evaluation scores multiplied by it weights
         totalScore += self.evalWorkerCount(currentState) * workerCountWeight
@@ -248,34 +250,35 @@ class AIPlayer(Player):
 
     # Recursion function to search for the best move per depth
     def greedyGetBestMove(self, currentState, currentDepth, currentNode, isAITurn):
-
         moves = listAllLegalMoves(currentState)
 
         localNum = 0
         for child_move in moves:
+
             localNum += 1
             if self.prune:
                 print(len(moves) - localNum - 1)
                 break
 
-            if child_move.moveType == "END" and currentDepth != self.depthLimit:
-                isAITurn = not isAITurn
-
             if currentDepth >= self.depthLimit:
                 stateScore = self.evalOverall(currentNode.state)
 
-                if not isAITurn and (-1*stateScore < currentNode.parent.beta):
+                if not currentNode.turn and (-1*stateScore < currentNode.parent.beta):
                     currentNode.parent.beta = stateScore*-1
+                    if currentNode.parent.alpha > currentNode.parent.beta:
+                        print("Pruning Tree:")
+                        print("The Alpha Val is: " + str(currentNode.parent.alpha))
+                        print("The Beta Val is: " + str(currentNode.parent.beta))
+                        self.prune = True
                     return
-                if isAITurn and stateScore > currentNode.parent.alpha:
+                if currentNode.turn and stateScore > currentNode.parent.alpha:
                     currentNode.parent.alpha = stateScore
+                    if currentNode.parent.alpha > currentNode.parent.beta:
+                        print("Pruning Tree:")
+                        print("The Alpha Val is: " + str(currentNode.parent.alpha))
+                        print("The Beta Val is: " + str(currentNode.parent.beta))
+                        self.prune = True
                     return
-
-                if currentNode.parent.alpha > currentNode.parent.beta:
-                    print("Pruning Tree:")
-                    print("The Alpha Val is: " + currentNode.parent.alpha)
-                    print("The Beta Val is: " + currentNode.parent.beta)
-                    self.prune = True
 
                 return
             else:
@@ -284,17 +287,17 @@ class AIPlayer(Player):
                     resultNode = Node(resultState, child_move, 1000, currentNode, isAITurn, currentNode.alpha, currentNode.beta)
                 else:
                     resultNode = Node(resultState, child_move, -1000, currentNode, isAITurn, currentNode.alpha, currentNode.beta)
-                self.greedyGetBestMove(resultNode.state, currentDepth + 1, resultNode, isAITurn,)
-
-        #self.prune = False
-
+                self.greedyGetBestMove(resultNode.state, currentDepth + 1, resultNode, isAITurn)
 
         if not self.prune:
             if isAITurn:
                 currentNode.score = currentNode.alpha
+            else:
+                currentNode.score = currentNode.beta
         else:
             self.prune = False
             return
+
 
         if currentDepth > 0:
             if not currentNode.turn and (currentNode.score < currentNode.parent.beta):
@@ -385,7 +388,7 @@ class AIPlayer(Player):
         self.bestMove = None
         dummyNode = Node(currentState,None,-1000,None,isAITurn, -1000, 1000)
         self.greedyGetBestMove(currentState, 0, dummyNode, isAITurn)
-
+        print("MOVE: " + str(self.bestMove))
         return self.bestMove
 
     ##
