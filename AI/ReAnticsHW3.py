@@ -60,10 +60,10 @@ class AIPlayer(Player):
         else:
             soldierCount = len(getAntList(currentState, currentState.whoseTurn, (SOLDIER,)))
         # Reward for having more than 10 soldiers
-        if (soldierCount > 10):
+        if (soldierCount > 3):
             return 1.0
         else:
-            return 0.1 * soldierCount
+            return 0.33 * soldierCount
 
     # Evaluation function for the difference in ants between AIs
     def evalAntDifference(self, currentState, test = False, testMyAnts = None, testEnemyAnts = None):
@@ -204,8 +204,7 @@ class AIPlayer(Player):
     # A score between [-1.0, 1.0] such that + is good and - is bad for the
     #   player in question (me parameter)
     ##
-
-    def evalOverall(self, currentState):
+    def evalOverall(self, currentState, move):
         # Determine if the game has ended and who won
         winResult = getWinner(currentState)
         if winResult == 1:
@@ -213,18 +212,20 @@ class AIPlayer(Player):
         elif winResult == 0:
             return -1.0
         # else neither player has won this state.
+        if move.buildType == R_SOLDIER or move.buildType == DRONE or move.buildType == WORKER:
+            return -.99
 
         # Initialize the totalScore
         totalScore = 0
 
         # Initialize the weights for the specific evaluation functions
         workerCountWeight = 1
-        soldierCountWeight = 2
+        soldierCountWeight = 6
         antDifferenceWeight = 1
         healthDifferenceWeight = 3
-        workerPositionWeight = 2
+        workerPositionWeight = 4
         soldierPositionWeight = 2
-        queenPositionWeight = 2
+        queenPositionWeight = 3
         enemyQueenHealthWeight = 0
         totalWeight = workerCountWeight+soldierCountWeight+antDifferenceWeight+\
                                         healthDifferenceWeight+ workerPositionWeight+\
@@ -249,48 +250,59 @@ class AIPlayer(Player):
         return overallScore
 
     # Recursion function to search for the best move per depth
-    def greedyGetBestMove(self, currentState, currentDepth, currentNode, isAITurn):
-        moves = listAllLegalMoves(currentState)
+    def greedyGetBestMove(self, currentState, currentDepth, currentNode):
+        moves = []
+        moves.extend(listAllMovementMoves(currentState))
+        moves.append(Move(END, None, None))
+        moves.extend(listAllBuildMoves(currentState))
+        print(len(moves))
+
 
         localNum = 0
         for child_move in moves:
-
-            localNum += 1
             if self.prune:
-                print(len(moves) - localNum - 1)
                 break
 
             if currentDepth >= self.depthLimit:
-                stateScore = self.evalOverall(currentNode.state)
+                stateScore = self.evalOverall(currentNode.state, child_move)
 
-                if not currentNode.turn and (-1*stateScore < currentNode.parent.beta):
+                if not currentNode.parent.turn and (-1*stateScore < currentNode.parent.beta):
                     currentNode.parent.beta = stateScore*-1
-                    if currentNode.parent.alpha > currentNode.parent.beta:
-                        print("Pruning Tree:")
-                        print("The Alpha Val is: " + str(currentNode.parent.alpha))
-                        print("The Beta Val is: " + str(currentNode.parent.beta))
+                    if currentNode.parent.alpha >= currentNode.parent.beta:
+                        #print("Pruning Tree:")
+                       # print("The Alpha Val is: " + str(currentNode.parent.alpha))
+                        #print("The Beta Val is: " + str(currentNode.parent.beta))
                         self.prune = True
                     return
-                if currentNode.turn and stateScore > currentNode.parent.alpha:
+                if currentNode.parent.turn and stateScore > currentNode.parent.alpha:
                     currentNode.parent.alpha = stateScore
-                    if currentNode.parent.alpha > currentNode.parent.beta:
-                        print("Pruning Tree:")
-                        print("The Alpha Val is: " + str(currentNode.parent.alpha))
-                        print("The Beta Val is: " + str(currentNode.parent.beta))
+                    if currentNode.parent.alpha >= currentNode.parent.beta:
+                        #print("Pruning Tree:")
+                        #print("The Alpha Val is: " + str(currentNode.parent.alpha))
+                        #print("The Beta Val is: " + str(currentNode.parent.beta))
                         self.prune = True
                     return
 
                 return
             else:
                 resultState = getNextState(currentState, child_move)
-                if not isAITurn:
-                    resultNode = Node(resultState, child_move, 1000, currentNode, isAITurn, currentNode.alpha, currentNode.beta)
+                if not currentNode.turn:
+                    if child_move.moveType == END:
+                        resultNode = Node(resultState, child_move, 1000, currentNode, not currentNode.turn, currentNode.alpha, currentNode.beta)
+                    else:
+                        resultNode = Node(resultState, child_move, 1000, currentNode, currentNode.turn, currentNode.alpha,
+                                          currentNode.beta)
                 else:
-                    resultNode = Node(resultState, child_move, -1000, currentNode, isAITurn, currentNode.alpha, currentNode.beta)
-                self.greedyGetBestMove(resultNode.state, currentDepth + 1, resultNode, isAITurn)
+                    if child_move.moveType == END:
+                        resultNode = Node(resultState, child_move, -1000, currentNode, not currentNode.turn, currentNode.alpha, currentNode.beta)
+                    else:
+                        resultNode = Node(resultState, child_move, -1000, currentNode, currentNode.turn, currentNode.alpha,
+                                          currentNode.beta)
+
+                self.greedyGetBestMove(resultNode.state, currentDepth + 1, resultNode)
 
         if not self.prune:
-            if isAITurn:
+            if currentNode.turn:
                 currentNode.score = currentNode.alpha
             else:
                 currentNode.score = currentNode.beta
@@ -300,14 +312,22 @@ class AIPlayer(Player):
 
 
         if currentDepth > 0:
-            if not currentNode.turn and (currentNode.score < currentNode.parent.beta):
+            #print("currentNode.parent.turn: " + str(currentNode.parent.turn))
+           # print("currentNode.score: " + str(currentNode.score))
+            #print("currentNode.parent.alpha: " + str(currentNode.alpha))
+            #print("currentNode.parent.beta: " + str(currentNode.beta))
+            if not currentNode.parent.turn and (currentNode.score < currentNode.parent.beta):
+                #print("Passing up beta")
                 currentNode.parent.beta = currentNode.score
                 if currentDepth == 1:
                     self.bestMove = currentNode.move
-            elif currentNode.turn and (currentNode.score > currentNode.parent.alpha):
+                    #print(self.bestMove)
+            elif currentNode.parent.turn and (currentNode.score > currentNode.parent.alpha):
+                #print("Passing up alpha")
                 currentNode.parent.alpha = currentNode.score
                 if currentDepth == 1:
                     self.bestMove = currentNode.move
+                    #print(self.bestMove)
         return
 
 
@@ -384,10 +404,9 @@ class AIPlayer(Player):
         self.buildingCoords = self.getCoordsOfListElements(getConstrList(currentState, currentState.whoseTurn, (ANTHILL, TUNNEL)))
 
         # Run the recursive MinMax evaluation to determine the best move
-        isAITurn = True
         self.bestMove = None
-        dummyNode = Node(currentState,None,-1000,None,isAITurn, -1000, 1000)
-        self.greedyGetBestMove(currentState, 0, dummyNode, isAITurn)
+        dummyNode = Node(currentState,None,-1000,None,True, -1000, 1000)
+        self.greedyGetBestMove(currentState, 0, dummyNode)
         print("MOVE: " + str(self.bestMove))
         return self.bestMove
 
@@ -445,11 +464,11 @@ if testAI.evalWorkerCount(None,True,2) != -1:
 # evalSoldierCount
 if testAI.evalSoldierCount(None,True,0) != 0:
     print("ERROR: Soldier Count Evaluation1")
-if testAI.evalSoldierCount(None,True,5) != 0.5:
+if testAI.evalSoldierCount(None,True,5) != -1:
     print("ERROR: Soldier Count Evaluation2")
-if testAI.evalSoldierCount(None,True,10) != 1:
+if testAI.evalSoldierCount(None,True,3) != .99:
     print("ERROR: Soldier Count Evaluation3")
-if testAI.evalSoldierCount(None,True,12) != 1:
+if testAI.evalSoldierCount(None,True,12) != -1:
     print("ERROR: Soldier Count Evaluation4")
 
 # evalAntDifference
