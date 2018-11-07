@@ -179,7 +179,7 @@ class AIPlayer(Player):
         children[0] = self.mutate_gene(children[0])
         children[1] = self.mutate_gene(children[1])
 
-        return children
+        return children[0],children[1]
 
     ##
     # getAttack
@@ -229,7 +229,7 @@ class AIPlayer(Player):
         while i < 30:
             firstGene = listOfGenes[i]
             secondGene = listOfGenes[j]
-            newGeneOne, newGeneTwo = self.matePopulation(firstGene, secondGene)
+            newGeneOne, newGeneTwo = self.mate_genes(firstGene, secondGene)
             listOfGenes[i] = newGeneOne
             listOfGenes[j] = newGeneTwo
             i += 2
