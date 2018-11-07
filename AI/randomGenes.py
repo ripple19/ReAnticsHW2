@@ -24,8 +24,11 @@ class Gene:
             # To remove duplicate coordinates
             self.enemy_placements = list(set(enemy_placements))
 
-        self._init_unused_coords()
-        self._init_my_placements()
+        self.unused_my_coords = []
+        self.unused_enemy_coords = []
+        self.init_unused_coords()
+        
+        self.init_my_placements()
         self.init_enemy_placements()
 
     def mutate_gene(self) -> None:
@@ -33,14 +36,12 @@ class Gene:
             placement_to_change = random.choice(self.my_placements + self.enemy_placements)
             if placement_to_change in self.my_placements:
                 self.my_placements.remove(placement_to_change)
-                self._init_my_placements()
+                self.init_my_placements()
             else:
                 self.enemy_placements.remove(placement_to_change)
                 self.init_enemy_placements()
 
-    def _init_unused_coords(self) -> None:
-        self.unused_my_coords = []
-        self.unused_enemy_coords = []
+    def init_unused_coords(self) -> None:
         for x in range(9):
             for y in range(3):
                 if (x, y) not in self.my_placements:
@@ -49,18 +50,18 @@ class Gene:
                 if (x, y) not in self.enemy_placements:
                     self.unused_enemy_coords.append((x, y))
 
-    def _init_my_placements(self) -> None:
+    def init_my_placements(self) -> None:
         while len(self.my_placements) != self.NUM_MY_PLACEMENTS:
-            self.my_placements.append(self._get_random_unused_my_coord())
+            self.my_placements.append(self.get_random_unused_my_coord())
 
     def init_enemy_placements(self) -> None:
         while len(self.enemy_placements) != self.NUM_ENEMY_PLACEMENTS:
-            self.enemy_placements.append(self._get_random_unused_enemy_coord())
+            self.enemy_placements.append(self.get_random_unused_enemy_coord())
 
-    def _get_random_unused_my_coord(self) -> Tuple[int, int]:
+    def get_random_unused_my_coord(self) -> Tuple[int, int]:
         return self.unused_my_coords.pop(random.randrange(len(self.unused_my_coords)))
 
-    def _get_random_unused_enemy_coord(self) -> Tuple[int, int]:
+    def get_random_unused_enemy_coord(self) -> Tuple[int, int]:
         return self.unused_enemy_coords.pop(random.randrange(len(self.unused_enemy_coords)))
 
 
@@ -89,30 +90,30 @@ class AIPlayer(Player):
         self.current_generation = 0
         self.gene_list = []
         self.current_gene_index = 0
-        self._init_gene_list()
+        self.init_gene_list()
 
-    def _init_gene_list(self) -> None:
+    def init_gene_list(self) -> None:
         self.gene_list = []
         while len(self.gene_list) != self.POPULATION_SIZE:
             self.gene_list.append(Gene())
 
-    def _index_with_construction(self, current_state: GameState,
-                                 coordinate_list: List[Tuple[int, int]]) -> int:
+    def index_with_construction(self, current_state: GameState,
+                                coordinate_list: List[Tuple[int, int]]) -> int:
         for index, coordinate in enumerate(coordinate_list):
             if current_state.board[coordinate[0]][coordinate[1]].constr is not None:
                 return index
         return -1
 
-    def _check_enemy_placements(self, current_state: GameState) -> None:
+    def check_enemy_placements(self, current_state: GameState) -> None:
         current_gene = self.gene_list[self.current_gene_index]
 
-        index = self._index_with_construction(current_state, current_gene.enemy_placements)
+        index = self.index_with_construction(current_state, current_gene.enemy_placements)
         while index != -1:
             current_gene.enemy_placements.pop(index)
             current_gene.init_enemy_placements()
 
             # Reset index to check if all placements are now good.
-            index = self._index_with_construction(current_state, current_gene.enemy_placements)
+            index = self.index_with_construction(current_state, current_gene.enemy_placements)
 
     ##
     # getPlacement
@@ -133,7 +134,7 @@ class AIPlayer(Player):
         if current_state.phase == SETUP_PHASE_1:
             return current_gene.my_placements
         elif current_state.phase == SETUP_PHASE_2:
-            self._check_enemy_placements(current_state)
+            self.check_enemy_placements(current_state)
             return current_gene.enemy_placements
 
     ##
