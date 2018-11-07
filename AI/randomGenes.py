@@ -10,26 +10,26 @@ class Gene:
                  enemy_placements: List[Tuple[int, int]]=None):
         self.NUM_MY_PLACEMENTS = 11
         self.NUM_ENEMY_PLACEMENTS = 2
+        self.MUTATION_CHANCE = 0.02
 
+        self.games_played: int = 0
         self.fitness_score: int = 0  # Equal to the number of games the agent has won.
-
-        self._init_unused_coords()
 
         self.my_placements = []
         if my_placements:
             # To remove duplicate coordinates
             self.my_placements = list(set(my_placements))
-        self._init_my_placements()
-
         self.enemy_placements = []
         if enemy_placements:
             # To remove duplicate coordinates
             self.enemy_placements = list(set(enemy_placements))
+
+        self._init_unused_coords()
+        self._init_my_placements()
         self.init_enemy_placements()
 
     def mutate_gene(self) -> None:
-        MUTATION_CHANCE = 0.02
-        if random.random() <= MUTATION_CHANCE:
+        if random.random() <= self.MUTATION_CHANCE:
             placement_to_change = random.choice(self.my_placements + self.enemy_placements)
             if placement_to_change in self.my_placements:
                 self.my_placements.remove(placement_to_change)
@@ -43,9 +43,11 @@ class Gene:
         self.unused_enemy_coords = []
         for x in range(9):
             for y in range(3):
-                self.unused_my_coords.append((x, y))
+                if (x, y) not in self.my_placements:
+                    self.unused_my_coords.append((x, y))
             for y in range(6, 9):
-                self.unused_enemy_coords.append((x, y))
+                if (x, y) not in self.enemy_placements:
+                    self.unused_enemy_coords.append((x, y))
 
     def _init_my_placements(self) -> None:
         while len(self.my_placements) != self.NUM_MY_PLACEMENTS:
@@ -155,22 +157,31 @@ class AIPlayer(Player):
         return selected_move
 
     def mate_genes(self, first_parent: Gene, second_parent: Gene) -> List[Gene]:
-        crossover = random.randint(0, len(first_parent.coordinate_scores))
+        my_placements_crossover = random.randint(0, first_parent.NUM_MY_PLACEMENTS)
+        first_parent_my_placements = random.shuffle(first_parent.my_placements)
+        second_parent_my_placements = random.shuffle(second_parent.my_placements)
 
-        first_parent_item_list = list(first_parent.coordinate_scores.items())
-        second_parent_item_list = list(second_parent.coordinate_scores.items())
+        first_child_my_placements = first_parent_my_placements[:my_placements_crossover]
+        first_child_my_placements += second_parent_my_placements[my_placements_crossover:]
+        second_child_my_placements = first_parent_my_placements[my_placements_crossover:]
+        second_child_my_placements += second_parent_my_placements[:my_placements_crossover]
 
-        first_child_coord_scores_dict = dict(first_parent_item_list[:crossover])
-        first_child_coord_scores_dict.update(dict(second_parent_item_list[crossover:]))
+        enemy_placements_crossover = random.randint(0, first_parent.NUM_ENEMY_PLACEMENTS)
+        first_parent_enemy_placements = random.shuffle(first_parent.enemy_placements)
+        second_parent_enemy_placements = random.shuffle(second_parent.enemy_placements)
 
-        second_child_coord_scores_dict = dict(first_parent_item_list[crossover:])
-        second_child_coord_scores_dict.update(dict(second_parent_item_list[:crossover]))
+        first_child_enemy_placements = first_parent_enemy_placements[:enemy_placements_crossover]
+        first_child_enemy_placements += second_parent_enemy_placements[enemy_placements_crossover:]
+        second_child_enemy_placements = first_parent_enemy_placements[enemy_placements_crossover:]
+        second_child_enemy_placements += second_parent_enemy_placements[:enemy_placements_crossover]
 
-        children = [Gene(first_child_coord_scores_dict), Gene(second_child_coord_scores_dict)]
-        children[0] = self.mutate_gene(children[0])
-        children[1] = self.mutate_gene(children[1])
+        first_child = Gene(first_child_my_placements, first_child_enemy_placements)
+        first_child.mutate_gene()
 
-        return children[0],children[1]
+        second_child = Gene(second_child_my_placements, second_child_enemy_placements)
+        second_child.mutate_gene()
+
+        return [first_child, second_child]
 
     ##
     # getAttack
@@ -181,17 +192,19 @@ class AIPlayer(Player):
     #   attackingAnt - The ant currently making the attack (Ant)
     #   enemyLocation - The Locations of the Enemies that can be attacked (Location[])
     ##
-    def getAttack(self, currentState, attackingAnt, enemyLocations):
+    def getAttack(self, current_state, attacking_ant, enemy_locations):
         # Attack a random enemy.
-        return enemyLocations[random.randint(0, len(enemyLocations) - 1)]
+        return enemy_locations[random.randint(0, len(enemy_locations) - 1)]
 
-    def registerWin(self, has_won):
+    def registerWin(self, has_won: bool) -> None:
         current_gene = self.gene_list[self.current_gene_index]
-        self.fitnessTest(current_gene, has_won)  # Set the fitness of the
-        current_gene.numGamesPlayed += 1
-        if current_gene.numGamesPlayed == 50:
-            current_gene.fitness = current_gene.fitness / 50
-            if self.current_gene_index == 29:  # Then, we need to create the next generation.
+        self.fitness_test(current_gene, has_won)  # Set the fitness of the gene.
+        current_gene.games_played += 1
+        
+        if current_gene.games_played == self.GAMES_PER_GENE:
+            current_gene.fitness = current_gene.fitness / self.GAMES_PER_GENE
+            # Then, we need to create the next generation.
+            if self.current_gene_index == self.POPULATION_SIZE - 1:
                 self.gene_list = self.get_next_generation(self.gene_list)
                 self.current_gene_index = 0
                 self.current_generation += 1
@@ -199,34 +212,13 @@ class AIPlayer(Player):
                 self.current_gene_index += 1
 
     def get_next_generation(self, gene_list: List[Gene]) -> List[Gene]:
-        i = 0
-        j = 1
-        while i < 30:
-            firstGene = gene_list[i]
-            secondGene = gene_list[j]
-            newGeneOne, newGeneTwo = self.mate_genes(firstGene, secondGene)
-            gene_list[i] = newGeneOne
-            gene_list[j] = newGeneTwo
-            i += 2
-            j += 2
-        return gene_list
+        new_generation = []
+        while gene_list:
+            # Call gene function that mates two parents.
+            # Return list of two new child genes. Add them to the new gene list.
+            new_generation += self.mate_genes(gene_list.pop(0), gene_list.pop(0))
+        return new_generation
 
-
-        # Need to flush out the original gene list
-        # Call gene function that mates two parents. mate(gene1, gene2)
-    #  Return two new child genes. Add them to the new gene list.
-                # Set new generation to be the actual gene list.
-
-    def fitnessTest(self, gene, has_won):
+    def fitness_test(self, gene: Gene, has_won: bool) -> None:
         if has_won:
-            gene.fitness += 1
-
-
-class RippleGene:
-    def __init__(self):
-        self.coordList = None
-        self.enemyFood = None
-        self.numGamesPlayed = None
-
-        # Look at a gene and determine its fitness according to a predefined set of tests.
-        # This method
+            gene.fitness_score += 1
