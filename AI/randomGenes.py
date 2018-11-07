@@ -1,5 +1,12 @@
 import random
+import sys
+
+sys.path.append("..")  # so other modules can be found in parent dir
 from Player import *
+from Constants import *
+from Construction import CONSTR_STATS
+from Ant import UNIT_STATS
+from Move import Move
 from GameState import *
 from AIPlayerUtils import *
 from typing import List, Tuple
@@ -13,13 +20,13 @@ class Gene:
 
         self._init_unused_coords()
 
-        self.my_placements: List[Tuple[int, int]] = []
+        self.my_placements = []
         if my_placements:
             # To remove duplicate coordinates
             self.my_placements = list(set(my_placements))
         self._init_my_placements()
 
-        self.enemy_placements: List[Tuple[int, int]] = []
+        self.enemy_placements = []
         if enemy_placements:
             # To remove duplicate coordinates
             self.enemy_placements = list(set(enemy_placements))
@@ -37,8 +44,8 @@ class Gene:
                 self.init_enemy_placements()
 
     def _init_unused_coords(self) -> None:
-        self.unused_my_coords: List[Tuple[int, int]] = []
-        self.unused_enemy_coords: List[Tuple[int, int]] = []
+        self.unused_my_coords = []
+        self.unused_enemy_coords = []
         for x in range(9):
             for y in range(3):
                 self.unused_my_coords.append((x, y))
@@ -59,10 +66,10 @@ class Gene:
     def _get_random_unused_enemy_coord(self) -> Tuple[int, int]:
         return self.unused_enemy_coords.pop(random.randrange(len(self.unused_enemy_coords)))
 
-
+##!!!!!!!!!24 HOUR EXTENSION GRANTED BY DR. NUXOLL FOR THIS ASSIGNMENT!!!!!!!!!!!!!!!! (Due Saturday at 11:55 PM).
 ##
 # AIPlayer
-# Description: The responsibility of this class is to interact with the game by
+# Description: The responsbility of this class is to interact with the game by
 # deciding a valid move based on a given game state. This class has methods that
 # will be implemented by students in Dr. Nuxoll's AI course.
 #
@@ -77,14 +84,17 @@ class AIPlayer(Player):
     #   inputPlayerId - The id to give the new player (int)
     #   cpy           - whether the player is a copy (when playing itself)
     ##
+
+
     def __init__(self, input_player_id):
         super(AIPlayer, self).__init__(input_player_id, "GeneMaster")
         self.POPULATION_SIZE = 30
         self.GAMES_PER_GENE = 50
         self.NUMBER_OF_GENERATIONS = 20
+        self.CURRENT_GENERATION = 0
 
-        self.gene_list: List[Gene] = []
-        self.gene_index: int = 0
+        self.gene_list = []
+        self.gene_index = 0
 
         self._init_gene_list()
 
@@ -193,32 +203,58 @@ class AIPlayer(Player):
         # method templaste, not implemented
         pass
 
-    def registerWin(self, hasWon):
-        # self.currentGene.fitness = fitnesstest(self.currentGene.dna)
-        # Add current fitness score to the average fitness score. (Divide by number of games after done)
-        # if number of games is past a current number, then were good.
-        # Check to see if there are more genees. If so, advance to next gene.
-        # If we are out of genes in this pop, then create a new population. Reset our index to start.
-        # Update our list of genes to the new one, start playing again.
-        # Else, we want to keep testing this gene, play again.
-        pass
 
-    # Method to take two parents from the gene population and
-    # create two children. Will call the fitness function to figure out which is best.
-    def createNewPopulation(self, firstGene, secondGene):
-        pass
+
+    def registerWin(self, hasWon):
+        self.fitnessTest(self.currentGene, hasWon) #Set the fitness of the
+        self.currentGene.numGamesPlayed += 1
+        if self.currentGene.numGamesPlayed == 50:
+            self.currentGene.fitness = self.currentGene.fitness/50
+            if self.currentGeneIndex == 29: #Then we need to create the next generation.
+                self.geneList = self.nextGeneration(self.geneList)
+                self.currentGeneIndex = 0
+                self.currentGene = self.geneList[0]
+                self.CURRENT_GENERATION += 1
+            else:
+                self.currentGeneIndex += 1
+                self.currentGene = self.geneList[self.currentGeneIndex]
+        else: #Continue on.
+            pass
+
+
 
     def nextGeneration(self, listOfGenes):
-        lowFitness = 0
-        fitGenes = None
-        for gene in listOfGenes:
-            if gene.fitness > lowFitness:
-                fitGenes.add(gene)
+        i = 0
+        j = 1
+        while i < 30:
+            firstGene = listOfGenes[i]
+            secondGene = listOfGenes[j]
+            newGeneOne, newGeneTwo = self.matePopulation(firstGene, secondGene)
+            listOfGenes[i] = newGeneOne
+            listOfGenes[j] = newGeneTwo
+            i += 2
+            j += 2
+        return
 
-                # Need to flush out the original gene list
-                # Call gene function that mates two parents. mate(gene1, gene2)
-                # Return two new child genes. Add them to the new gene list.
+
+        # Need to flush out the original gene list
+        # Call gene function that mates two parents. mate(gene1, gene2)
+    #  Return two new child genes. Add them to the new gene list.
                 # Set new generation to be the actual gene list.
 
-    def fitnessTest(self, gene):
-        pass
+    def fitnessTest(self, gene, hasWon):
+        if hasWon:
+            gene.fitness += 1
+        else:
+            return
+
+
+class RippleGene:
+    def __init__(self):
+        self.coordList = None
+        self.enemyFood = None
+        self.fitness = None #Equal to the number of games the agent has won in 100 games.
+        self.numGamesPlayed = None
+
+        # Look at a gene and determine its fitness according to a predefined set of tests.
+        # This method
