@@ -200,9 +200,9 @@ class AIPlayer(Player):
         current_gene = self.gene_list[self.current_gene_index]
         self.fitness_test(current_gene, has_won)  # Set the fitness of the gene.
         current_gene.games_played += 1
-        
+
         if current_gene.games_played == self.GAMES_PER_GENE:
-            current_gene.fitness = current_gene.fitness / self.GAMES_PER_GENE
+            current_gene.fitness_score = current_gene.fitness_score / self.GAMES_PER_GENE
             # Then, we need to create the next generation.
             if self.current_gene_index == self.POPULATION_SIZE - 1:
                 self.gene_list = self.get_next_generation(self.gene_list)
