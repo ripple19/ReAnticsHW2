@@ -1,14 +1,7 @@
-import random
-import sys
-
-sys.path.append("..")  # so other modules can be found in parent dir
-from Player import *
-from Constants import *
-from Construction import CONSTR_STATS
-from Ant import UNIT_STATS
-from Move import Move
-from GameState import *
 from AIPlayerUtils import *
+from GameState import *
+from Player import *
+
 from typing import List, Tuple
 
 
@@ -17,6 +10,8 @@ class Gene:
                  enemy_placements: List[Tuple[int, int]]=None):
         self.NUM_MY_PLACEMENTS = 11
         self.NUM_ENEMY_PLACEMENTS = 2
+
+        self.fitness_score: int = 0  # Equal to the number of games the agent has won.
 
         self._init_unused_coords()
 
@@ -66,38 +61,33 @@ class Gene:
     def _get_random_unused_enemy_coord(self) -> Tuple[int, int]:
         return self.unused_enemy_coords.pop(random.randrange(len(self.unused_enemy_coords)))
 
-##!!!!!!!!!24 HOUR EXTENSION GRANTED BY DR. NUXOLL FOR THIS ASSIGNMENT!!!!!!!!!!!!!!!! (Due Saturday at 11:55 PM).
-##
-# AIPlayer
-# Description: The responsbility of this class is to interact with the game by
-# deciding a valid move based on a given game state. This class has methods that
-# will be implemented by students in Dr. Nuxoll's AI course.
-#
-# Variables:
-#   playerId - The id of the player.
-##
-class AIPlayer(Player):
-    # __init__
-    # Description: Creates a new Player
-    #
-    # Parameters:
-    #   inputPlayerId - The id to give the new player (int)
-    #   cpy           - whether the player is a copy (when playing itself)
-    ##
 
+class AIPlayer(Player):
+    """
+    AIPlayer
+    The genetic algorithm agent for CS 421.
+    NOTE: 24 hour extension was granted by Dr. Nuxoll (Due Saturday at 11:55 PM)!
+
+    Authors: Alex Hadi and Andrew Ripple
+    Date: November 7, 2018
+    """
 
     def __init__(self, input_player_id):
+        """
+        __init__
+        Creates the player for the genetic algorithm agent.
+
+        :param input_player_id: The id to give the new player (int).
+        """
         super(AIPlayer, self).__init__(input_player_id, "GeneMaster")
         self.POPULATION_SIZE = 30
         self.GAMES_PER_GENE = 50
         self.NUMBER_OF_GENERATIONS = 20
-        self.CURRENT_GENERATION = 0
 
+        self.current_generation = 0
         self.gene_list = []
         self.current_gene_index = 0
-
         self._init_gene_list()
-        self.current_gene = self.gene_list[self.current_gene_index]
 
     def _init_gene_list(self) -> None:
         self.gene_list = []
@@ -196,18 +186,17 @@ class AIPlayer(Player):
         return enemyLocations[random.randint(0, len(enemyLocations) - 1)]
 
     def registerWin(self, has_won):
-        self.fitnessTest(self.current_gene, has_won)  # Set the fitness of the
-        self.current_gene.numGamesPlayed += 1
-        if self.current_gene.numGamesPlayed == 50:
-            self.current_gene.fitness = self.current_gene.fitness / 50
+        current_gene = self.gene_list[self.current_gene_index]
+        self.fitnessTest(current_gene, has_won)  # Set the fitness of the
+        current_gene.numGamesPlayed += 1
+        if current_gene.numGamesPlayed == 50:
+            current_gene.fitness = current_gene.fitness / 50
             if self.current_gene_index == 29:  # Then, we need to create the next generation.
                 self.gene_list = self.get_next_generation(self.gene_list)
                 self.current_gene_index = 0
-                self.current_gene = self.gene_list[0]
-                self.CURRENT_GENERATION += 1
+                self.current_generation += 1
             else:
                 self.current_gene_index += 1
-                self.current_gene = self.gene_list[self.current_gene_index]
 
     def get_next_generation(self, gene_list: List[Gene]) -> List[Gene]:
         i = 0
@@ -228,18 +217,15 @@ class AIPlayer(Player):
     #  Return two new child genes. Add them to the new gene list.
                 # Set new generation to be the actual gene list.
 
-    def fitnessTest(self, gene, hasWon):
-        if hasWon:
+    def fitnessTest(self, gene, has_won):
+        if has_won:
             gene.fitness += 1
-        else:
-            return
 
 
 class RippleGene:
     def __init__(self):
         self.coordList = None
         self.enemyFood = None
-        self.fitness = None #Equal to the number of games the agent has won in 100 games.
         self.numGamesPlayed = None
 
         # Look at a gene and determine its fitness according to a predefined set of tests.
