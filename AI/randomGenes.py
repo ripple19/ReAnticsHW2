@@ -94,9 +94,10 @@ class AIPlayer(Player):
         self.CURRENT_GENERATION = 0
 
         self.gene_list = []
-        self.gene_index = 0
+        self.current_gene_index = 0
 
         self._init_gene_list()
+        self.current_gene = self.gene_list[self.current_gene_index]
 
     def _init_gene_list(self) -> None:
         self.gene_list = []
@@ -111,7 +112,7 @@ class AIPlayer(Player):
         return -1
 
     def _check_enemy_placements(self, current_state: GameState) -> None:
-        current_gene = self.gene_list[self.gene_index]
+        current_gene = self.gene_list[self.current_gene_index]
 
         index = self._index_with_construction(current_state, current_gene.enemy_placements)
         while index != -1:
@@ -136,7 +137,7 @@ class AIPlayer(Player):
     # Return: The coordinates of where the construction is to be placed
     ##
     def getPlacement(self, current_state: GameState) -> List[Tuple[int, int]]:
-        current_gene = self.gene_list[self.gene_index]
+        current_gene = self.gene_list[self.current_gene_index]
         if current_state.phase == SETUP_PHASE_1:
             return current_gene.my_placements
         elif current_state.phase == SETUP_PHASE_2:
@@ -194,47 +195,32 @@ class AIPlayer(Player):
         # Attack a random enemy.
         return enemyLocations[random.randint(0, len(enemyLocations) - 1)]
 
-    ##
-    # registerWin
-    #
-    # This agent doens't learn
-    #
-    def registerWin(self, hasWon):
-        # method templaste, not implemented
-        pass
-
-
-
-    def registerWin(self, hasWon):
-        self.fitnessTest(self.currentGene, hasWon) #Set the fitness of the
-        self.currentGene.numGamesPlayed += 1
-        if self.currentGene.numGamesPlayed == 50:
-            self.currentGene.fitness = self.currentGene.fitness/50
-            if self.currentGeneIndex == 29: #Then we need to create the next generation.
-                self.geneList = self.nextGeneration(self.geneList)
-                self.currentGeneIndex = 0
-                self.currentGene = self.geneList[0]
+    def registerWin(self, has_won):
+        self.fitnessTest(self.current_gene, has_won)  # Set the fitness of the
+        self.current_gene.numGamesPlayed += 1
+        if self.current_gene.numGamesPlayed == 50:
+            self.current_gene.fitness = self.current_gene.fitness / 50
+            if self.current_gene_index == 29:  # Then, we need to create the next generation.
+                self.gene_list = self.get_next_generation(self.gene_list)
+                self.current_gene_index = 0
+                self.current_gene = self.gene_list[0]
                 self.CURRENT_GENERATION += 1
             else:
-                self.currentGeneIndex += 1
-                self.currentGene = self.geneList[self.currentGeneIndex]
-        else: #Continue on.
-            pass
+                self.current_gene_index += 1
+                self.current_gene = self.gene_list[self.current_gene_index]
 
-
-
-    def nextGeneration(self, listOfGenes):
+    def get_next_generation(self, gene_list: List[Gene]) -> List[Gene]:
         i = 0
         j = 1
         while i < 30:
-            firstGene = listOfGenes[i]
-            secondGene = listOfGenes[j]
+            firstGene = gene_list[i]
+            secondGene = gene_list[j]
             newGeneOne, newGeneTwo = self.mate_genes(firstGene, secondGene)
-            listOfGenes[i] = newGeneOne
-            listOfGenes[j] = newGeneTwo
+            gene_list[i] = newGeneOne
+            gene_list[j] = newGeneTwo
             i += 2
             j += 2
-        return
+        return gene_list
 
 
         # Need to flush out the original gene list
