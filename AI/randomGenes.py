@@ -12,9 +12,9 @@ class Gene:
         self.NUM_MY_PLACEMENTS = 11
         self.NUM_ENEMY_PLACEMENTS = 2
         self.MUTATION_CHANCE = 0.02
-
-        self.games_played: int = 0
-        self.fitness_score: int = 0  # Equal to the number of games the agent has won.
+        self.ending_state = None
+        self.games_played = 0
+        self.fitness_score = 0  # Equal to the number of games the agent has won.
 
         self.my_placements = []
         if my_placements:
@@ -87,15 +87,15 @@ class AIPlayer(Player):
 
         sys.stdout = open('evidence_file.txt', 'w')
 
-        self.POPULATION_SIZE = 10
-        self.GAMES_PER_GENE = 10
-        self.NUMBER_OF_GENERATIONS = 2
+        self.POPULATION_SIZE = 30
+        self.GAMES_PER_GENE = 50
+        self.NUMBER_OF_GENERATIONS = 10
 
         self.current_generation = 0
-        self.current_gene_index = 0
-
         self.gene_list = []
+        self.current_gene_index = 0
         self.init_gene_list()
+        self.setup = None
 
         self.current_gene = self.gene_list[self.current_gene_index]
 
@@ -159,6 +159,9 @@ class AIPlayer(Player):
         while selected_move.moveType == BUILD and num_ants >= 3:
             selected_move = moves[random.randint(0, len(moves) - 1)]
 
+        if current_state.phase == PLAY_PHASE:
+            self.setup = current_state
+
         return selected_move
 
     def mate_genes(self, first_parent: Gene, second_parent: Gene) -> List[Gene]:
@@ -202,13 +205,16 @@ class AIPlayer(Player):
         return enemy_locations[random.randint(0, len(enemy_locations) - 1)]
 
     def registerWin(self, has_won: bool) -> None:
-        self.fitness_test(self.current_gene, has_won)  # Set the fitness of the gene.
+        current_state = self.setup;
+        self.current_gene.ending_state = current_state
+        self.fitness_test(self.current_gene,current_state, has_won)  # Set the fitness of the gene.
         self.current_gene.games_played += 1
 
         if self.current_gene.games_played == self.GAMES_PER_GENE:
             self.current_gene.fitness_score = self.current_gene.fitness_score / self.GAMES_PER_GENE
             # Then, we need to create the next generation.
             if self.current_gene_index == self.POPULATION_SIZE - 1:
+                self.print_ascii(self.gene_list)
                 self.gene_list = self.get_next_generation(self.gene_list)
                 self.current_gene_index = 0
                 self.current_gene = self.gene_list[self.current_gene_index]
@@ -227,6 +233,19 @@ class AIPlayer(Player):
             new_generation += self.mate_genes(first_parent, second_parent)
         return new_generation
 
-    def fitness_test(self, gene: Gene, has_won: bool) -> None:
+    def fitness_test(self, gene: Gene, current_state, has_won: bool) -> None:
+        food_gathered = getCurrPlayerInventory(current_state).foodCount
+        gene.fitness_score += food_gathered
         if has_won:
-            gene.fitness_score += 1
+            gene.fitness_score += 20
+
+    def print_ascii(self, gene_list):
+        highest_fitness = 0
+        best_gene = None
+        for gene in gene_list:
+            if gene.fitness_score >= highest_fitness:
+                best_gene = gene
+                highest_fitness = gene.fitness_score
+
+        asciiPrintState(best_gene.ending_state)
+
