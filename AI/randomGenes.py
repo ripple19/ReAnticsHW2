@@ -159,8 +159,10 @@ class AIPlayer(Player):
 
     def mate_genes(self, first_parent: Gene, second_parent: Gene) -> List[Gene]:
         my_placements_crossover = random.randint(0, first_parent.NUM_MY_PLACEMENTS)
-        first_parent_my_placements = random.shuffle(first_parent.my_placements)
-        second_parent_my_placements = random.shuffle(second_parent.my_placements)
+        first_parent_my_placements = first_parent.my_placements
+        random.shuffle(first_parent_my_placements)
+        second_parent_my_placements = second_parent.my_placements
+        random.shuffle(second_parent_my_placements)
 
         first_child_my_placements = first_parent_my_placements[:my_placements_crossover]
         first_child_my_placements += second_parent_my_placements[my_placements_crossover:]
@@ -168,8 +170,10 @@ class AIPlayer(Player):
         second_child_my_placements += second_parent_my_placements[:my_placements_crossover]
 
         enemy_placements_crossover = random.randint(0, first_parent.NUM_ENEMY_PLACEMENTS)
-        first_parent_enemy_placements = random.shuffle(first_parent.enemy_placements)
-        second_parent_enemy_placements = random.shuffle(second_parent.enemy_placements)
+        first_parent_enemy_placements = first_parent.enemy_placements
+        random.shuffle(first_parent_enemy_placements)
+        second_parent_enemy_placements = second_parent.enemy_placements
+        random.shuffle(second_parent_enemy_placements)
 
         first_child_enemy_placements = first_parent_enemy_placements[:enemy_placements_crossover]
         first_child_enemy_placements += second_parent_enemy_placements[enemy_placements_crossover:]
