@@ -2,6 +2,7 @@ from AIPlayerUtils import *
 from GameState import *
 from Player import *
 
+import sys
 from typing import List, Tuple
 
 
@@ -83,14 +84,20 @@ class AIPlayer(Player):
         :param input_player_id: The id to give the new player (int).
         """
         super(AIPlayer, self).__init__(input_player_id, "GeneMaster")
-        self.POPULATION_SIZE = 30
-        self.GAMES_PER_GENE = 50
-        self.NUMBER_OF_GENERATIONS = 20
+
+        sys.stdout = open('evidence_file.txt', 'w')
+
+        self.POPULATION_SIZE = 10
+        self.GAMES_PER_GENE = 10
+        self.NUMBER_OF_GENERATIONS = 2
 
         self.current_generation = 0
-        self.gene_list = []
         self.current_gene_index = 0
+
+        self.gene_list = []
         self.init_gene_list()
+
+        self.current_gene = self.gene_list[self.current_gene_index]
 
     def init_gene_list(self) -> None:
         self.gene_list = []
@@ -105,15 +112,13 @@ class AIPlayer(Player):
         return -1
 
     def check_enemy_placements(self, current_state: GameState) -> None:
-        current_gene = self.gene_list[self.current_gene_index]
-
-        index = self.index_with_construction(current_state, current_gene.enemy_placements)
+        index = self.index_with_construction(current_state, self.current_gene.enemy_placements)
         while index != -1:
-            current_gene.enemy_placements.pop(index)
-            current_gene.init_enemy_placements()
+            self.current_gene.enemy_placements.pop(index)
+            self.current_gene.init_enemy_placements()
 
             # Reset index to check if all placements are now good.
-            index = self.index_with_construction(current_state, current_gene.enemy_placements)
+            index = self.index_with_construction(current_state, self.current_gene.enemy_placements)
 
     ##
     # getPlacement
@@ -130,12 +135,11 @@ class AIPlayer(Player):
     # Return: The coordinates of where the construction is to be placed
     ##
     def getPlacement(self, current_state: GameState) -> List[Tuple[int, int]]:
-        current_gene = self.gene_list[self.current_gene_index]
         if current_state.phase == SETUP_PHASE_1:
-            return current_gene.my_placements
+            return self.current_gene.my_placements
         elif current_state.phase == SETUP_PHASE_2:
             self.check_enemy_placements(current_state)
-            return current_gene.enemy_placements
+            return self.current_gene.enemy_placements
 
     ##
     # getMove
@@ -158,22 +162,18 @@ class AIPlayer(Player):
         return selected_move
 
     def mate_genes(self, first_parent: Gene, second_parent: Gene) -> List[Gene]:
-        my_placements_crossover = random.randint(0, first_parent.NUM_MY_PLACEMENTS)
+        my_placements_crossover = int(first_parent.NUM_MY_PLACEMENTS / 2)
         first_parent_my_placements = first_parent.my_placements
-        random.shuffle(first_parent_my_placements)
         second_parent_my_placements = second_parent.my_placements
-        random.shuffle(second_parent_my_placements)
 
         first_child_my_placements = first_parent_my_placements[:my_placements_crossover]
         first_child_my_placements += second_parent_my_placements[my_placements_crossover:]
         second_child_my_placements = first_parent_my_placements[my_placements_crossover:]
         second_child_my_placements += second_parent_my_placements[:my_placements_crossover]
 
-        enemy_placements_crossover = random.randint(0, first_parent.NUM_ENEMY_PLACEMENTS)
+        enemy_placements_crossover = int(first_parent.NUM_ENEMY_PLACEMENTS / 2)
         first_parent_enemy_placements = first_parent.enemy_placements
-        random.shuffle(first_parent_enemy_placements)
         second_parent_enemy_placements = second_parent.enemy_placements
-        random.shuffle(second_parent_enemy_placements)
 
         first_child_enemy_placements = first_parent_enemy_placements[:enemy_placements_crossover]
         first_child_enemy_placements += second_parent_enemy_placements[enemy_placements_crossover:]
@@ -202,26 +202,29 @@ class AIPlayer(Player):
         return enemy_locations[random.randint(0, len(enemy_locations) - 1)]
 
     def registerWin(self, has_won: bool) -> None:
-        current_gene = self.gene_list[self.current_gene_index]
-        self.fitness_test(current_gene, has_won)  # Set the fitness of the gene.
-        current_gene.games_played += 1
+        self.fitness_test(self.current_gene, has_won)  # Set the fitness of the gene.
+        self.current_gene.games_played += 1
 
-        if current_gene.games_played == self.GAMES_PER_GENE:
-            current_gene.fitness_score = current_gene.fitness_score / self.GAMES_PER_GENE
+        if self.current_gene.games_played == self.GAMES_PER_GENE:
+            self.current_gene.fitness_score = self.current_gene.fitness_score / self.GAMES_PER_GENE
             # Then, we need to create the next generation.
             if self.current_gene_index == self.POPULATION_SIZE - 1:
                 self.gene_list = self.get_next_generation(self.gene_list)
                 self.current_gene_index = 0
+                self.current_gene = self.gene_list[self.current_gene_index]
                 self.current_generation += 1
             else:
                 self.current_gene_index += 1
+                self.current_gene = self.gene_list[self.current_gene_index]
 
     def get_next_generation(self, gene_list: List[Gene]) -> List[Gene]:
         new_generation = []
         while gene_list:
             # Call gene function that mates two parents.
             # Return list of two new child genes. Add them to the new gene list.
-            new_generation += self.mate_genes(gene_list.pop(0), gene_list.pop(0))
+            first_parent = gene_list.pop(random.randrange(len(gene_list)))
+            second_parent = gene_list.pop(random.randrange(len(gene_list)))
+            new_generation += self.mate_genes(first_parent, second_parent)
         return new_generation
 
     def fitness_test(self, gene: Gene, has_won: bool) -> None:
