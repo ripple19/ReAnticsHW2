@@ -85,8 +85,6 @@ class AIPlayer(Player):
         """
         super(AIPlayer, self).__init__(input_player_id, "GeneMaster")
 
-        sys.stdout = open('evidence_file.txt', 'w')
-
         self.POPULATION_SIZE = 30
         self.GAMES_PER_GENE = 50
         self.NUMBER_OF_GENERATIONS = 10
@@ -205,9 +203,9 @@ class AIPlayer(Player):
         return enemy_locations[random.randint(0, len(enemy_locations) - 1)]
 
     def registerWin(self, has_won: bool) -> None:
-        current_state = self.setup;
+        current_state = self.setup
         self.current_gene.ending_state = current_state
-        self.fitness_test(self.current_gene,current_state, has_won)  # Set the fitness of the gene.
+        self.fitness_test(self.current_gene, current_state, has_won)  # Set the fitness of the gene.
         self.current_gene.games_played += 1
 
         if self.current_gene.games_played == self.GAMES_PER_GENE:
@@ -234,18 +232,16 @@ class AIPlayer(Player):
         return new_generation
 
     def fitness_test(self, gene: Gene, current_state, has_won: bool) -> None:
-        food_gathered = getCurrPlayerInventory(current_state).foodCount
-        gene.fitness_score += food_gathered
+        my_food_count = getCurrPlayerInventory(current_state).foodCount
+        gene.fitness_score += my_food_count
         if has_won:
             gene.fitness_score += 20
 
-    def print_ascii(self, gene_list):
-        highest_fitness = 0
-        best_gene = None
-        for gene in gene_list:
-            if gene.fitness_score >= highest_fitness:
-                best_gene = gene
-                highest_fitness = gene.fitness_score
-
-        asciiPrintState(best_gene.ending_state)
-
+    def print_ascii(self, gene_list) -> None:
+        best_gene = max(gene_list, key=lambda gene: gene.fitness_score)
+        with open("evidence_file.txt", "a") as file:
+            sys.stdout = file
+            asciiPrintState(best_gene.ending_state)
+            print("\n")
+        # Reset to default value.
+        sys.stdout = sys.__stdout__
