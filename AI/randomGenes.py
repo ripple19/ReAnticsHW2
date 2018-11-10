@@ -91,34 +91,33 @@ class AIPlayer(Player):
         self.GAMES_PER_GENE = 50
         self.NUMBER_OF_GENERATIONS = 30
 
-        self.current_generation = 0
         self.gene_list: List[Gene] = []
-        self.current_gene_index = 0
         self.init_gene_list()
-        self.setup: GameState = None
-
+        self.current_gene_index = 0
         self.current_gene = self.gene_list[self.current_gene_index]
+
+        self.current_generation = 0
+        self.setup_state: GameState = None
 
     def init_gene_list(self) -> None:
         self.gene_list = []
         while len(self.gene_list) != self.POPULATION_SIZE:
             self.gene_list.append(Gene())
 
-    def index_with_construction(self, current_state: GameState,
-                                coordinate_list: List[Tuple[int, int]]) -> int:
-        for index, coordinate in enumerate(coordinate_list):
+    def coord_with_construction(self, current_state: GameState,
+                                coordinate_list: List[Tuple[int, int]]) -> Tuple[int, int]:
+        for coordinate in coordinate_list:
             if current_state.board[coordinate[0]][coordinate[1]].constr is not None:
-                return index
-        return -1
+                return coordinate
 
     def check_enemy_placements(self, current_state: GameState) -> None:
-        index = self.index_with_construction(current_state, self.current_gene.enemy_placements)
-        while index != -1:
-            self.current_gene.enemy_placements.pop(index)
+        coord = self.coord_with_construction(current_state, self.current_gene.enemy_placements)
+        while coord:
+            self.current_gene.enemy_placements.remove(coord)
             self.current_gene.init_enemy_placements()
 
-            # Reset index to check if all placements are now good.
-            index = self.index_with_construction(current_state, self.current_gene.enemy_placements)
+            # Reset coordinate to check if all placements are now good.
+            coord = self.coord_with_construction(current_state, self.current_gene.enemy_placements)
 
     ##
     # getPlacement
@@ -161,7 +160,7 @@ class AIPlayer(Player):
             selected_move = moves[random.randint(0, len(moves) - 1)]
 
         if current_state.phase == PLAY_PHASE:
-            self.setup = current_state
+            self.setup_state = current_state
 
         return selected_move
 
@@ -206,7 +205,7 @@ class AIPlayer(Player):
         return enemy_locations[random.randint(0, len(enemy_locations) - 1)]
 
     def registerWin(self, has_won: bool) -> None:
-        current_state = self.setup
+        current_state = self.setup_state
         self.current_gene.ending_state = current_state
         self.fitness_test(self.current_gene, current_state, has_won)  # Set the fitness of the gene.
         self.current_gene.games_played += 1
@@ -225,22 +224,18 @@ class AIPlayer(Player):
                 self.current_gene = self.gene_list[self.current_gene_index]
 
     def get_next_generation(self, gene_list: List[Gene]) -> List[Gene]:
-        new_generation = []
         gene_list.sort(key=lambda gene: gene.fitness_score, reverse=True)
         best_gene_list = gene_list[:int(self.POPULATION_SIZE / 3)]
+        best_gene_list *= int(self.POPULATION_SIZE / len(best_gene_list))
 
-        i = 0
+        new_generation = []
         while len(new_generation) != self.POPULATION_SIZE:
             # Call gene function that mates two parents.
             # Return list of two new child genes. Add them to the new gene list.
-            for x in range(3):
-                first_parent = best_gene_list[i]
-                second_parent = best_gene_list[i+1]
-                new_generation += self.mate_genes(first_parent, second_parent)
-            i += 2
+            new_generation += self.mate_genes(best_gene_list.pop(0), best_gene_list.pop(0))
         return new_generation
 
-    def fitness_test(self, gene: Gene, current_state, has_won: bool) -> None:
+    def fitness_test(self, gene: Gene, current_state: GameState, has_won: bool) -> None:
         my_food_count = getCurrPlayerInventory(current_state).foodCount
         gene.fitness_score += my_food_count
 
@@ -250,7 +245,7 @@ class AIPlayer(Player):
         if has_won:
             gene.fitness_score += 30
 
-    def print_ascii(self, gene_list) -> None:
+    def print_ascii(self, gene_list: List[Gene]) -> None:
         best_gene = max(gene_list, key=lambda gene: gene.fitness_score)
         with open("evidence_file.txt", "a") as file:
             sys.stdout = file
