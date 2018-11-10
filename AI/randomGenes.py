@@ -1,7 +1,6 @@
 from AIPlayerUtils import *
 from GameState import *
 from Player import *
-import operator
 
 import sys
 from typing import List, Tuple
@@ -13,8 +12,9 @@ class Gene:
         self.NUM_MY_PLACEMENTS = 11
         self.NUM_ENEMY_PLACEMENTS = 2
         self.MUTATION_CHANCE = 0.10
-        self.ending_state = None
-        self.totalMovesCrossGames = 0
+
+        self.ending_state: GameState = None
+        self.total_moves_across_games = 0
         self.games_played = 0
         self.fitness_score = 0  # Equal to the number of games the agent has won.
 
@@ -92,10 +92,10 @@ class AIPlayer(Player):
         self.NUMBER_OF_GENERATIONS = 30
 
         self.current_generation = 0
-        self.gene_list = []
+        self.gene_list: List[Gene] = []
         self.current_gene_index = 0
         self.init_gene_list()
-        self.setup = None
+        self.setup: GameState = None
 
         self.current_gene = self.gene_list[self.current_gene_index]
 
@@ -151,7 +151,7 @@ class AIPlayer(Player):
     # Return: The Move to be made
     ##
     def getMove(self, current_state: GameState) -> Move:
-        self.current_gene.totalMovesCrossGames += 1
+        self.current_gene.total_moves_across_games += 1
         moves = listAllLegalMoves(current_state)
         selected_move = moves[random.randint(0, len(moves) - 1)]
 
@@ -166,7 +166,7 @@ class AIPlayer(Player):
         return selected_move
 
     def mate_genes(self, first_parent: Gene, second_parent: Gene) -> List[Gene]:
-        my_placements_crossover = int(random.randrange(11))
+        my_placements_crossover = int(random.randrange(first_parent.NUM_MY_PLACEMENTS))
         first_parent_my_placements = first_parent.my_placements
         second_parent_my_placements = second_parent.my_placements
 
@@ -224,33 +224,28 @@ class AIPlayer(Player):
                 self.current_gene_index += 1
                 self.current_gene = self.gene_list[self.current_gene_index]
 
-    def getFitness(self,gene):
-        return gene.fitness_score
-
     def get_next_generation(self, gene_list: List[Gene]) -> List[Gene]:
         new_generation = []
-        gene_list.sort(key=operator.attrgetter('fitness_score'), reverse=True)
-        best_gene_list = gene_list[:10]
+        gene_list.sort(key=lambda gene: gene.fitness_score, reverse=True)
+        best_gene_list = gene_list[:int(self.POPULATION_SIZE / 3)]
+
         i = 0
-        j = 1
-        while i < 10:
+        while len(new_generation) != self.POPULATION_SIZE:
             # Call gene function that mates two parents.
             # Return list of two new child genes. Add them to the new gene list.
-            for x in range(0,3):
+            for x in range(3):
                 first_parent = best_gene_list[i]
-                second_parent = best_gene_list[j]
+                second_parent = best_gene_list[i+1]
                 new_generation += self.mate_genes(first_parent, second_parent)
             i += 2
-            j += 2
-
-
         return new_generation
 
     def fitness_test(self, gene: Gene, current_state, has_won: bool) -> None:
         my_food_count = getCurrPlayerInventory(current_state).foodCount
         gene.fitness_score += my_food_count
-        moveWeight = gene.totalMovesCrossGames/100
-        gene.fitness_score += moveWeight
+
+        move_weight = gene.total_moves_across_games / 100
+        gene.fitness_score += move_weight
 
         if has_won:
             gene.fitness_score += 30
