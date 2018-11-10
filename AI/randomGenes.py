@@ -191,44 +191,69 @@ class AIPlayer(Player):
 
         return [first_child, second_child]
 
-    ##
-    # getAttack
-    # Description: Gets the attack to be made from the Player
-    #
-    # Parameters:
-    #   currentState - A clone of the current state (GameState)
-    #   attackingAnt - The ant currently making the attack (Ant)
-    #   enemyLocation - The Locations of the Enemies that can be attacked (Location[])
-    ##
     def getAttack(self, current_state, attacking_ant, enemy_locations):
+        """
+        getAttack
+        Gets the attack to be made from the Player.
+
+        :param current_state: The current state (GameState).
+        :param attacking_ant: The ant currently making the attack (Ant).
+        :param enemy_locations: The Locations of the enemies that can be attacked (Location[])
+        :return: The attack to perform.
+        """
+        
         # Attack a random enemy.
         return enemy_locations[random.randint(0, len(enemy_locations) - 1)]
 
     def registerWin(self, has_won: bool) -> None:
+        """
+        registerWin
+        Called when the agent wins or loses.
+
+        :param has_won: True if the agent won (otherwise False).
+        """
+
+        # Sets the GameState and evaluates its fitness score.
         current_state = self.setup_state
         self.current_gene.ending_state = current_state
         self.fitness_test(self.current_gene, current_state, has_won)  # Set the fitness of the gene.
         self.current_gene.games_played += 1
 
+        # Once the amount of games played has been reached, change the gene being evaluated.
         if self.current_gene.games_played == self.GAMES_PER_GENE:
             self.current_gene.fitness_score = self.current_gene.fitness_score / self.GAMES_PER_GENE
+
             # Then, we need to create the next generation.
             if self.current_gene_index == self.POPULATION_SIZE - 1:
                 self.print_ascii(self.gene_list)
                 self.gene_list = self.get_next_generation(self.gene_list)
+
                 self.current_gene_index = 0
                 self.current_gene = self.gene_list[self.current_gene_index]
                 self.current_generation += 1
+            # Otherwise, need to just change the gene in the current generation.
             else:
                 self.current_gene_index += 1
                 self.current_gene = self.gene_list[self.current_gene_index]
 
     def get_next_generation(self, gene_list: List[Gene]) -> List[Gene]:
+        """
+        get_next_generation
+        Gets the next generation of genes.
+
+        :param gene_list: The list of genes to use as parent genes.
+        :return: The next generation as a list of genes.
+        """
+
+        # Sorts the input gene list in descending order by fitness score.
         gene_list.sort(key=lambda gene: gene.fitness_score, reverse=True)
+
+        # Gets the best genes and copies them throughout the list.
         best_gene_list = gene_list[:int(self.POPULATION_SIZE / 3)]
         best_gene_list *= int(self.POPULATION_SIZE / len(best_gene_list))
 
         new_generation = []
+        # Continue adding to the new generation until it reaches the proper size.
         while len(new_generation) != self.POPULATION_SIZE:
             # Call gene function that mates two parents.
             # Return list of two new child genes. Add them to the new gene list.
@@ -236,20 +261,40 @@ class AIPlayer(Player):
         return new_generation
 
     def fitness_test(self, gene: Gene, current_state: GameState, has_won: bool) -> None:
+        """
+        fitness_test
+        Sets the fitness score for a gene with a given state.
+
+        :param gene: The gene to evaluate.
+        :param current_state: The GameState to evaluate.
+        :param has_won: True if agent won, otherwise False.
+        """
+
+        # Gets the agent's food count.
         my_food_count = getCurrPlayerInventory(current_state).foodCount
         gene.fitness_score += my_food_count
 
+        # Gets the move weight.
         move_weight = gene.total_moves_across_games / 100
         gene.fitness_score += move_weight
 
+        # Reward the agent significantly for winning.
         if has_won:
             gene.fitness_score += 30
 
     def print_ascii(self, gene_list: List[Gene]) -> None:
+        """
+        print_ascii
+        Prints the ending state from the best gene (by fitness score) using asciiPrintState.
+
+        :param gene_list: The list of genes.
+        """
+
+        # Gets the maximum scoring gene.
         best_gene = max(gene_list, key=lambda gene: gene.fitness_score)
         with open("evidence_file.txt", "a") as file:
             sys.stdout = file
             asciiPrintState(best_gene.ending_state)
             print("\n")
-        # Reset to default value.
+        # Reset sys.stdout to default value.
         sys.stdout = sys.__stdout__
