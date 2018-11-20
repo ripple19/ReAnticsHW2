@@ -38,6 +38,11 @@ class AIPlayer(Player):
         self.move = None
         self.nextMove = None
         self.prunedMoves = 0
+        self.alpha = 0.7
+        self.currentNeuralOutput = 0
+        self.currentEvalOutput = 0
+        self.currentError = self.currentEvalOutput - self.currentNeuralOutput
+        self.biases = [] #Needed to incorporate this in.
         self.inputWeights = []  # 2D array
         self.outputWeights = [] # 1D array
         self.hiddenValues = [0] * self.NODES
@@ -524,6 +529,25 @@ class AIPlayer(Player):
             sum += self.outputWeights[i]*self.hiddenValues[i]
         output = 1/(1+math.pow(math.e, -sum))
         return output
+
+
+
+    def backPropogate(self, totalError):
+
+        for input in self.inputWeights:
+            for x in range(0,len(self.hiddenValues)):
+                errorTerm = self.outputWeights[x]*totalError*((1/(1+math.pow(math.e, -self.hiddenValues[x])))
+                                                              *(1-(1/(1+math.pow(math.e, -self.hiddenValues[x])))))
+                newWeight = input[x] + self.alpha * errorTerm
+                input[x] = newWeight
+
+        for output in self.outputWeights:
+            errorTerm = self.outputWeights[x] * totalError * ((1 / (1 + math.pow(math.e, -self.hiddenValues[x])))
+                                                            * (1 - (1 / (1 + math.pow(math.e, -self.hiddenValues[x])))))
+            newWeight = output + self.alpha * errorTerm
+            output = newWeight
+            print(output)
+
 
     ##
     # getNextState
