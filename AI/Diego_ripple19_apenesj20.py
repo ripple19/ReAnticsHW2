@@ -532,17 +532,17 @@ class AIPlayer(Player):
 
 
 
-    def backPropogate(self, totalError):
+    def backPropogate(self):
 
         for input in self.inputWeights:
             for x in range(0,len(self.hiddenValues)):
-                errorTerm = self.outputWeights[x]*totalError*((1/(1+math.pow(math.e, -self.hiddenValues[x])))
+                errorTerm = input[x]*self.currentError*((1/(1+math.pow(math.e, -input)))
                                                               *(1-(1/(1+math.pow(math.e, -self.hiddenValues[x])))))
                 newWeight = input[x] + self.alpha * errorTerm
                 input[x] = newWeight
 
         for output in self.outputWeights:
-            errorTerm = self.outputWeights[x] * totalError * ((1 / (1 + math.pow(math.e, -self.hiddenValues[x])))
+            errorTerm = output * self.currentError * ((1 / (1 + math.pow(math.e, -self.hiddenValues[x])))
                                                             * (1 - (1 / (1 + math.pow(math.e, -self.hiddenValues[x])))))
             newWeight = output + self.alpha * errorTerm
             output = newWeight
