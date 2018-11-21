@@ -536,19 +536,20 @@ class AIPlayer(Player):
 
 
     def backPropogate(self):
-        for input in self.inputWeights:
-            for x in range(0,len(self.hiddenValues)):
-                errorTerm = input[x]*self.currentError*((1/(1+math.pow(math.e, -input)))
-                                                              *(1-(1/(1+math.pow(math.e, -self.hiddenValues[x])))))
-                newWeight = input[x] + self.alpha * errorTerm
-                input[x] = newWeight
+        inputs = self.inputValues
+        for x in range(0, len(inputs)):
+            for y in range(0,len(self.hiddenValues)):
+                errorTerm = inputs[x]*self.currentError*((1/(1+math.pow(math.e, -inputs[x])))
+                                                              *(1-(1/(1+math.pow(math.e, -inputs[x])))))
+                newWeight = self.inputWeights[y][x] + self.alpha * errorTerm
+                inputs[x] = newWeight
 
-        for output in self.outputWeights:
-            errorTerm = output * self.currentError * ((1 / (1 + math.pow(math.e, -self.hiddenValues[x])))
+        for x in range(0,len(self.outputWeights)):
+            errorTerm = self.hiddenValues[x] * self.currentError * ((1 / (1 + math.pow(math.e, -self.hiddenValues[x])))
                                                             * (1 - (1 / (1 + math.pow(math.e, -self.hiddenValues[x])))))
-            newWeight = output + self.alpha * errorTerm
-            output = newWeight
-            print(output)
+            newWeight = self.outputWeights[x] + self.alpha * errorTerm
+            self.outputWeights[x] = newWeight
+
 
 
     ##
