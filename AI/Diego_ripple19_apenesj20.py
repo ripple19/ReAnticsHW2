@@ -1,6 +1,7 @@
 import random
 import math
 import sys
+import time
 sys.path.append("..")  # so other modules can be found in parent dir
 from Player import *
 from Constants import *
@@ -10,6 +11,7 @@ from Move import Move
 from GameState import *
 from AIPlayerUtils import *
 from random import shuffle
+
 
 ##
 # AIPlayer
@@ -32,7 +34,7 @@ class AIPlayer(Player):
     #   cpy           - whether the player is a copy (when playing itself)
     ##
     def __init__(self, inputPlayerId):
-        super(AIPlayer,self).__init__(inputPlayerId, "Max")
+        super(AIPlayer,self).__init__(inputPlayerId, "Diego")
         self.depth_limit = 3
         self.me = 0
         self.move = None
@@ -42,12 +44,13 @@ class AIPlayer(Player):
         self.currentNeuralOutput = 0
         self.currentEvalOutput = 0
         self.currentError = self.currentEvalOutput - self.currentNeuralOutput
-        self.inputBiasWeights = [] #Needed to incorporate this in.
-        self.outputBiasWeight = 0
+        self.inputBiasWeights = [0] * self.NODES
         self.inputWeights = []  # 2D array
         self.outputWeights = [] # 1D array
         self.hiddenValues = [0] * self.NODES
         self.inputValues = [0] * self.INPUTS
+        self.gamesPlayed = 0
+        self.moveCounter = 0
         self.initializeNetwork()
 
 
@@ -162,7 +165,8 @@ class AIPlayer(Player):
     def registerWin(self, hasWon):
         # reset these variables so it does not interfere with the next game
         self.move = None
-        self.nextMove = None 
+        self.nextMove = None
+        self.gamesPlayed += 1
         pass
 
     ##
@@ -365,7 +369,12 @@ class AIPlayer(Player):
                 counter += 1
                 if node["minmax"] == 1:
                     temp = node["min"]
-                    node["min"] = max(self.evaluateState(n["state"]), node["min"])
+                    if self.gamesPlayed < 5:
+                        self.calculateError(n["state"])
+                        self.backPropogate()
+                        node["min"] = max(self.evaluateState(n["state"]), node["min"])
+                    else:
+                        node["min"] = max(self.getOutputValue(n["state"]), node["min"])
                     # if the bounds cross each other, prune remaining nodes
                     if node["min"] > node["max"]:
                         self.prunedMoves += len(newNodes) - counter
@@ -377,7 +386,12 @@ class AIPlayer(Player):
                         return node["min"]
                 else: # here the same happens for "minmax" == -1
                     temp = node["max"]
-                    node["max"] = min(self.evaluateState(n["state"]), node["max"])
+                    if self.gamesPlayed < 5:
+                        self.calculateError(n["state"])
+                        self.backPropogate()
+                        node["max"] = min(self.evaluateState(n["state"]), node["max"])
+                    else:
+                        node["max"] = min(self.getOutputValue(n["state"]), node["max"])
                     if node["min"] > node["max"]:
                         self.prunedMoves += len(newNodes) - counter
                         return node["max"]
@@ -486,9 +500,11 @@ class AIPlayer(Player):
         # Get food difference
         ourFoodNumber = myInventory.foodCount
         enemyFoodNumber = enemyInventory.foodCount
-        inputs.append(((2*ourFoodNumber+carrying)-(3*enemyFoodNumber))/((2*ourFoodNumber+carrying)+(3*enemyFoodNumber)))
+        inputs.append(((2*ourFoodNumber+carrying)-(3*enemyFoodNumber))/(max((2*ourFoodNumber+carrying)
+                                                                            + (3*enemyFoodNumber), 1)))
         # Get enemy ant count (for some unknown reason)
         inputs.append(min(len(enemyInventory.ants), 4)/4)
+
         return inputs
 
     ##
@@ -499,19 +515,21 @@ class AIPlayer(Player):
     ##
 
     def initializeNetwork(self):
+        random.seed(time.clock())
         # reset weights (if necessary)
-        self.inputWeights = []
+        self.inputWeights = [0] * (self.NODES * self.INPUTS)
         self.outputWeights = [0] * self.NODES
         self.outputBiasWeight = random.uniform(-1,1)
-        weights = [0] * self.INPUTS
         for i in range(0, self.NODES):
             # get random values for a set of weights that attach to a single hidden node
             for j in range(0, self.INPUTS):
-                weights[j] = random.uniform(-1, 1)
-            self.inputWeights.append(weights)
+                self.inputWeights[(i*self.INPUTS)+j] = random.uniform(-1, 1)
             # get weight for hidden node to output node
             self.outputWeights[i] = random.uniform(-1, 1)
-            self.inputBiasWeights[i] = random.uniform(-1,1)
+            self.inputBiasWeights[i] = random.uniform(-1, 1)
+        # print(self.inputWeights)
+        # print(self.outputWeights)
+        # print(self.inputBiasWeights)
 
     ##
     # getOutputValue()
@@ -520,21 +538,23 @@ class AIPlayer(Player):
     ##
 
     def getOutputValue(self, currentState):
+        # count up
+        self.moveCounter += 1
         # get inputs
         self.inputValues = self.getStateInputs(currentState)
         # get hidden node values
         for i in range(0, self.NODES):
             sum = 0
             for j in range(0, self.INPUTS):
-                sum += self.inputWeights[i][j]*self.inputValues[j]
-            sum += self.inputBiasWeights[i]*1
+                sum += self.inputWeights[(i*self.INPUTS)+j]*self.inputValues[j]
+            # sum += self.inputBiasWeights[i]*1
+            print(sum)
             self.hiddenValues[i] = 1/(1+math.pow(math.e, -sum))
 
         # get final values
         sum = 0
         for i in range(0, self.NODES):
             sum += self.outputWeights[i]*self.hiddenValues[i]
-        sum += self.outputBiasWeight*1
         output = 1/(1+math.pow(math.e, -sum))
         return output
 
@@ -544,24 +564,40 @@ class AIPlayer(Player):
         inputs = self.inputValues
         for x in range(0, len(inputs)):
             for y in range(0,len(self.hiddenValues)):
-                errorTerm = inputs[x]*self.currentError*((1/(1+math.pow(math.e, -inputs[x])))
-                                                              *(1-(1/(1+math.pow(math.e, -inputs[x])))))
-                newWeight = self.inputWeights[y][x] + self.alpha * errorTerm
-                inputs[x] = newWeight
+                # errorTerm = inputs[x]*self.currentError*((1/(1+math.pow(math.e, -inputs[x])))
+                #                                              *(1-(1/(1+math.pow(math.e, -inputs[x])))))
+                errorTerm = inputs[x] * self.currentError * (self.hiddenValues[y]*(1-self.hiddenValues[y]))
+                newWeight = self.inputWeights[(x*self.NODES)+y] + self.alpha * errorTerm
+                print("Old Weight %d: %.2f" % (((x*self.NODES)+y), self.inputWeights[(x*self.NODES)+y]))
+                print("Weight number %d: %.2f" % (((x*self.NODES)+y), newWeight))
+                self.inputWeights[(x*self.NODES)+y] = newWeight
 
         for x in range(0,len(self.outputWeights)):
-            errorTerm = self.hiddenValues[x] * self.currentError * ((1 / (1 + math.pow(math.e, -self.hiddenValues[x])))
-                                                            * (1 - (1 / (1 + math.pow(math.e, -self.hiddenValues[x])))))
+            #errorTerm = self.hiddenValues[x] * self.currentError * ((1 / (1 + math.pow(math.e, -self.hiddenValues[x])))
+            #                                                * (1 - (1 / (1 + math.pow(math.e, -self.hiddenValues[x])))))
+            errorTerm = self.hiddenValues[x] * self.currentError * (self.currentNeuralOutput*(1 - self.currentNeuralOutput))
             newWeight = self.outputWeights[x] + self.alpha * errorTerm
             self.outputWeights[x] = newWeight
 
-        for x in range(0,len(self.inputBiasWeights)):
-            errorTerm = 1 * self.currentError * ((1 / (1 + math.pow(math.e, -1)))
-                                                                    * (1 - (1 / (1 + math.pow(math.e, -1)))))
-            newWeight = self.inputBiasWeights[x] + self.alpha * errorTerm
-            self.inputBiasWeights[x] = newWeight
+        # for x in range(0,len(self.inputBiasWeights)):
+        #     errorTerm = 1 * self.currentError * ((1 / (1 + math.pow(math.e, -1)))
+        #                                                             * (1 - (1 / (1 + math.pow(math.e, -1)))))
+        #     newWeight = self.inputBiasWeights[x] + self.alpha * errorTerm
+        #     self.inputBiasWeights[x] = newWeight
+
+        # error printing
+        if self.moveCounter > 1000:
+            self.moveCounter = 0
+            # for nodeWeights in self.inputWeights:
+            # print(self.inputWeights)
+            # print(self.outputWeights)
+            # print(self.inputBiasWeights)
 
 
+
+    def calculateError(self, currentState):
+        self.currentError = self.evaluateState(currentState)-self.getOutputValue(currentState)
+        print(self.currentError)
 
     ##
     # getNextState
