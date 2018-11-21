@@ -42,7 +42,8 @@ class AIPlayer(Player):
         self.currentNeuralOutput = 0
         self.currentEvalOutput = 0
         self.currentError = self.currentEvalOutput - self.currentNeuralOutput
-        self.biases = [] #Needed to incorporate this in.
+        self.inputBiasWeights = [] #Needed to incorporate this in.
+        self.outputBiasWeight = 0
         self.inputWeights = []  # 2D array
         self.outputWeights = [] # 1D array
         self.hiddenValues = [0] * self.NODES
@@ -501,6 +502,7 @@ class AIPlayer(Player):
         # reset weights (if necessary)
         self.inputWeights = []
         self.outputWeights = [0] * self.NODES
+        self.outputBiasWeight = random.uniform(-1,1)
         weights = [0] * self.INPUTS
         for i in range(0, self.NODES):
             # get random values for a set of weights that attach to a single hidden node
@@ -509,6 +511,7 @@ class AIPlayer(Player):
             self.inputWeights.append(weights)
             # get weight for hidden node to output node
             self.outputWeights[i] = random.uniform(-1, 1)
+            self.inputBiasWeights[i] = random.uniform(-1,1)
 
     ##
     # getOutputValue()
@@ -524,12 +527,14 @@ class AIPlayer(Player):
             sum = 0
             for j in range(0, self.INPUTS):
                 sum += self.inputWeights[i][j]*self.inputValues[j]
+            sum += self.inputBiasWeights[i]*1
             self.hiddenValues[i] = 1/(1+math.pow(math.e, -sum))
 
         # get final values
         sum = 0
         for i in range(0, self.NODES):
             sum += self.outputWeights[i]*self.hiddenValues[i]
+        sum += self.outputBiasWeight*1
         output = 1/(1+math.pow(math.e, -sum))
         return output
 
@@ -549,6 +554,12 @@ class AIPlayer(Player):
                                                             * (1 - (1 / (1 + math.pow(math.e, -self.hiddenValues[x])))))
             newWeight = self.outputWeights[x] + self.alpha * errorTerm
             self.outputWeights[x] = newWeight
+
+        for x in range(0,len(self.inputBiasWeights)):
+            errorTerm = 1 * self.currentError * ((1 / (1 + math.pow(math.e, -1)))
+                                                                    * (1 - (1 / (1 + math.pow(math.e, -1)))))
+            newWeight = self.inputBiasWeights[x] + self.alpha * errorTerm
+            self.inputBiasWeights[x] = newWeight
 
 
 
