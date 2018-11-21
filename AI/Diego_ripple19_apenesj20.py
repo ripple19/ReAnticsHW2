@@ -46,6 +46,7 @@ class AIPlayer(Player):
         self.inputWeights = []  # 2D array
         self.outputWeights = [] # 1D array
         self.hiddenValues = [0] * self.NODES
+        self.inputValues = [0] * self.INPUTS
         self.initializeNetwork()
 
 
@@ -515,12 +516,14 @@ class AIPlayer(Player):
     # to find the output value of the neural network
     ##
 
-    def getOutputValue(self, inputs):
+    def getOutputValue(self, currentState):
+        # get inputs
+        self.inputValues = self.getStateInputs(currentState)
         # get hidden node values
         for i in range(0, self.NODES):
             sum = 0
             for j in range(0, self.INPUTS):
-                sum += self.inputWeights[i][j]*inputs[j]
+                sum += self.inputWeights[i][j]*self.inputValues[j]
             self.hiddenValues[i] = 1/(1+math.pow(math.e, -sum))
 
         # get final values
@@ -533,7 +536,6 @@ class AIPlayer(Player):
 
 
     def backPropogate(self):
-
         for input in self.inputWeights:
             for x in range(0,len(self.hiddenValues)):
                 errorTerm = input[x]*self.currentError*((1/(1+math.pow(math.e, -input)))
