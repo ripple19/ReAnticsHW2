@@ -24,7 +24,8 @@ from random import shuffle
 ##
 class AIPlayer(Player):
     INPUTS = 10
-    NODES = 20
+    NODES = 25
+    FINAL = 0  # 0: Set random weights and use back propagation. 1: Use final weights and exclude back propagation
 
     # __init__
     # Description: Creates a new Player
@@ -45,13 +46,22 @@ class AIPlayer(Player):
         self.currentEvalOutput = 0
         self.currentError = self.currentEvalOutput - self.currentNeuralOutput
         self.inputBiasWeights = [0] * self.NODES
+        self.outputBiasWeight = 0
         self.inputWeights = []  # 2D array
         self.outputWeights = [] # 1D array
         self.hiddenValues = [0] * self.NODES
         self.inputValues = [0] * self.INPUTS
         self.gamesPlayed = 0
         self.moveCounter = 0
-        self.initializeNetwork()
+        self.moveSum = 0
+        if self.FINAL == 0:
+            self.initializeNetwork()
+            self.useNetwork = False
+            self.notReady = True
+        else:
+            self.initializeFinalNetwork()
+            self.useNetwork = True
+            self.notReady = False
 
 
     ##
@@ -166,7 +176,17 @@ class AIPlayer(Player):
         # reset these variables so it does not interfere with the next game
         self.move = None
         self.nextMove = None
+        # for neural network use
         self.gamesPlayed += 1
+        # print average error
+        # if still testing, print error and network weights
+        if self.FINAL == 0:
+            print("AVERAGE ERROR %.4f" % (self.moveSum / self.moveCounter))
+            self.moveSum = 0
+            self.moveCounter = 0
+            # print network weights
+            print("PRINTING NETWORK WEIGHTS")
+            self.printWeights()
         pass
 
     ##
@@ -369,9 +389,8 @@ class AIPlayer(Player):
                 counter += 1
                 if node["minmax"] == 1:
                     temp = node["min"]
-                    if self.gamesPlayed < 5:
-                        self.calculateError(n["state"])
-                        self.backPropogate()
+                    if self.FINAL == 0:
+                        self.backPropagate(n["state"])
                         node["min"] = max(self.evaluateState(n["state"]), node["min"])
                     else:
                         node["min"] = max(self.getOutputValue(n["state"]), node["min"])
@@ -386,9 +405,8 @@ class AIPlayer(Player):
                         return node["min"]
                 else: # here the same happens for "minmax" == -1
                     temp = node["max"]
-                    if self.gamesPlayed < 5:
-                        self.calculateError(n["state"])
-                        self.backPropogate()
+                    if self.FINAL == 0:
+                        self.backPropagate(n["state"])
                         node["max"] = min(self.evaluateState(n["state"]), node["max"])
                     else:
                         node["max"] = min(self.getOutputValue(n["state"]), node["max"])
@@ -436,9 +454,9 @@ class AIPlayer(Player):
             ourAnthillCoords = myInventory.getAnthill().coords
             queenAroundAnthill = max(approxDist(ourQueen[0].coords, ourAnthillCoords), 2)
             inputs.append(1/queenAroundAnthill)
-        # Do we have 3 ants?
+        # Do we have 4 ants?
         ourAnts = getAntList(currentState, me, types=(QUEEN, WORKER, DRONE, SOLDIER, R_SOLDIER))
-        if len(ourAnts) == 3:
+        if len(ourAnts) == 4:
             inputs.append(1)
         else:
             inputs.append(0)
@@ -527,77 +545,118 @@ class AIPlayer(Player):
             # get weight for hidden node to output node
             self.outputWeights[i] = random.uniform(-1, 1)
             self.inputBiasWeights[i] = random.uniform(-1, 1)
-        # print(self.inputWeights)
-        # print(self.outputWeights)
-        # print(self.inputBiasWeights)
+
+    ##
+    # initializeFinalNetwork()
+    # FOR NEURAL NETWORKS
+    # Sets initial weights values learned from neural network testing
+    ##
+
+    def initializeFinalNetwork(self):
+        self.inputWeights = [0.8067856231477833, 0.41738792457124374, -0.19887300589083237, -0.05271362198458734, -0.7543744482287789, 0.006899232347048946, -1.230477929904425, -1.0619954483507277, -0.01520748404038509, 0.11081685778197316, 0.3336644685744748, 0.019450436507159833, -0.4508165293936773, -1.002653837497236, -0.4548918976081499, -0.1209228894160165, -0.6027458906707103, -0.8506502029153862, -4.957803377844669, -0.7256239450342228, -0.486028581943061, -0.5846312658493289, -1.2153198662149218, -0.6433091755773785, 1.2107551578685998, 0.08199264712945183, -0.09464656057707628, -0.16845480792153003, 1.381052433738868, 1.0325909090328105, -0.6855830777546078, -0.32853428940251134, 0.458780065533836, 0.70026643817939, 0.9530675945301187, 0.27517859459302757, -0.2938484696456349, 0.7325451980111783, -0.6433125551086087, -0.5819069136536735, 0.4026779962261581, -1.1153697207764388, -0.41560709597017426, 0.13414833492568412, -0.05066529315212854, -0.0497875554280486, -0.5428832630446792, 0.2441587004935594, -0.6997655776923016, -0.3281603015694086, 0.1696545467334449, 0.5205323687034132, -0.9261689117648114, 0.08368717960756147, -0.5366379465682152, -0.38548020841159764, -0.46908885375931975, -0.41527946587236114, -0.28235158692928486, -0.13850819842076892, -0.8741716861701204, -0.2205384030567835, 0.22366324652467823, -0.5530735302662925, 0.04505300159528369, 0.5122642635231173, -0.518192028179579, 0.6164914424377584, 1.26659866303241, 0.8554535187295188, 0.6060419079195113, -0.4274348587898449, -3.3350747126560196, -1.1745769610692007, 1.5769714817279568, 1.070492829316899, -0.18100944210461695, -0.0931928097704034, -0.6793680787373912, 0.4849283984197579, -0.8156898240298348, -0.3400785070525615, -0.29040828749552516, 0.07835438703553456, -0.03741218561818965, -0.8190960619454708, -0.21410191807296453, -0.054419167686085984, -0.5853877036161055, -0.3940634611586746, -0.1456388573067664, 0.035104035524662236, -0.019595241969823162, -0.556347027728655, -0.12285320227175943, 0.34271222011179236, 0.8204961023538545, -0.3293435913007173, -0.8465676862561462, 0.2821094852862159, -0.6369001797579064, -0.059522936852081425, -0.29427716580268953, -0.03476557786914222, 0.20096407218524315, -0.396403013209437, -0.7636318500448261, 0.800926203517044, -1.7882419518231145, -0.4811295548376988, -0.24484117775531317, -0.5344503912092723, 0.8609116278574517, 0.14035284675013843, -0.2404035118508337, 0.1857179917740922, -0.43398722696717684, -1.9352827526718528, 0.3810445220862126, -1.4861133591423354, -0.4784756075016206, -0.8477598244026642, -0.2944855841839375, -1.3708662464594896, -1.2941610120079299, 0.36489637642190437, -0.550473088492006, 0.10957643318578532, 0.0531536740173448, 0.38375853289485956, -0.13675201697313036, -0.6962325740664483, 0.2452029438966204, -0.6476354100899703, -1.362424304294363, 0.2024899439855339, 0.4241789354945173, -0.5606517984409004, -0.7328347347861229, 0.19728261711200276, -0.12517430134419444, 0.6027565632646966, -2.094756482979378, -1.8721436191101082, 0.3419961205759069, 0.4558958206790008, -0.15199529485090169, 0.45722321857831916, -1.0212871135527741, 0.45728299706328107, -0.568278158195393, 0.22580036407208814, 0.4109066895167868, 0.05846358265138499, -0.758550601268024, -0.7521098248148358, -0.4029100643134351, -1.0330457546344158, -0.21248874359211695, -0.8818177620493094, 0.39586935184527405, -0.49488876009807586, -1.825854504711797, -1.4959516102483825, -0.7221520100133975, -0.5858647661628508, -0.30977425578830237, 0.9282967221954653, 0.3040877501432744, -0.1167101268849202, -0.9309599997703408, 0.1616441304389718, 1.7165944913241018, -0.6957138012502116, 0.6806088457778549, -0.4003191651196082, 0.1588628658615189, -0.7014369413094652, -3.333676429138467, 0.8753822959356765, 0.9458792238946614, -0.6200709563036336, 0.5907412629705772, -0.2640290283696703, -0.9089782503694956, 0.2805405483684404, 0.11672460136427568, -0.14722851375079501, -0.6449082365403674, 0.2964070811212209, -0.3415139947608611, 0.1221861175282159, -0.31786324824546086, 0.25544044684970635, -1.2793173359818004, -0.44160247956259985, -0.06100857335401386, -1.5688852784346488, 1.4321173499825395, -1.257839756580869, -1.0224374902122697, -0.6267234471058017, -0.9147513044951421, -0.42034330170123574, 0.49066663496117846, -0.1221982859771217, -0.7509575733375148, 0.1263397677759735, 0.6159567941468997, -0.3060780497489341, 0.0006681898631190887, 0.14120901576616543, -0.1066563402474547, -0.5960484360662748, -0.9101085796035837, -0.1075860503689926, -0.5714374298207229, -0.7108075327201452, -0.27669247809591746, -0.7727723200889187, 0.6181729196685014, -0.6382864584845175, -2.206145707981424, -1.6708696468923143, 1.5331005382857732, 0.06508676747003626, -0.15695936611048075, -0.4425148480186565, -3.3000489421908465, 0.6219801856897533, 0.90140011027964, -0.5915657439321349, -0.5728474970533164, -0.30906081751862635, -0.26014942195250784, 0.5983541516182563, -0.874714476123024, 0.4033484852906749, 1.4464764510824213, -0.602765692812333, 0.784330734049022, -0.20886164342762395, 0.6017374741404735, -0.2913016529211878, 1.4659013216266705, 0.5324325963413791, -0.48134974160201166, -1.664452051018378, -1.0086016646380573, 0.37548868451653666]
+        self.outputWeights = [-0.25135448084032314, -3.266992519776581, -1.2787895396079771, 0.6147285374354081, 0.49573764695087563, -0.2100573219092263, -0.9319153233725589, -2.8187155810856455, 0.42751463774045334, 1.1036920440514912, 0.8679845076645002, 2.808807242852582, -1.1815742331097614, -0.0018670392527625722, -1.9075516329453426, -0.060883645380317354, -1.5369413008975379, -1.85417596610327, 0.36991611352863846, 1.5794235832039256, -0.5203228986444965, -0.30902820889852856, -1.7799767978983243, 1.0718914355668487, 2.23623991175124]
+        self.inputBiasWeights = [0.246283064590179, -1.0717264875019583, 0.11670599136507376, 0.6956991310221053, 0.4470279182723319, -0.73687536937471, -0.08520133689393414, -0.3003635207642156, -0.45844754461699816, 0.15567023984428893, -0.06061654082316659, -1.4125737265762615, 0.47600893809266687, 0.21630336061121908, -0.2803404063848437, -0.11743619426911535, 1.1983285333266753, -0.6653520197059809, -0.5443001192433214, -0.8187933757579712, -0.15675164485359927, -0.10204544597089535, 1.283029037915817, -0.32685373962298053, -1.2690466664030071]
+        self.outputBiasWeight = 0.5182174798418924
 
     ##
     # getOutputValue()
     # Takes GameState inputs [converted using getStateInputs()]
-    # to find the output value of the neural network
+    # to find the output value of the neural network.
+    # Output will be between 0 and 1
     ##
 
     def getOutputValue(self, currentState):
-        # count up
-        self.moveCounter += 1
         # get inputs
         self.inputValues = self.getStateInputs(currentState)
         # get hidden node values
         for i in range(0, self.NODES):
             sum = 0
+            # input weights
             for j in range(0, self.INPUTS):
                 sum += self.inputWeights[(i*self.INPUTS)+j]*self.inputValues[j]
-            # sum += self.inputBiasWeights[i]*1
-            print(sum)
+            # bias weight
+            sum += self.inputBiasWeights[i]
+            #print(sum)
             self.hiddenValues[i] = 1/(1+math.pow(math.e, -sum))
 
         # get final values
         sum = 0
         for i in range(0, self.NODES):
+            # output weights
             sum += self.outputWeights[i]*self.hiddenValues[i]
+        # bias weight
+        sum += self.outputBiasWeight
         output = 1/(1+math.pow(math.e, -sum))
         return output
 
+    ##
+    # backPropagate()
+    # This function updates every weight using the method below
+    #
+    # get output error
+    # get delta of output node
+    # get error value of each hidden node (weight)*(delta of output node)
+    # get delta of each hidden node (hiddenValues = b) (b)(1-b)(err)
+    # update every weight
+    #   - (old weight) + (alpha)*(delta of output node)*(input)
+    ##
+    def backPropagate(self, currentState):
+        # get output error
+        self.calculateError(currentState)
+        # get delta of output node
+        delta = self.outputValue*(1-self.outputValue)*self.currentError
 
-
-    def backPropogate(self):
-        inputs = self.inputValues
-        for x in range(0, len(inputs)):
-            for y in range(0,len(self.hiddenValues)):
-                # errorTerm = inputs[x]*self.currentError*((1/(1+math.pow(math.e, -inputs[x])))
-                #                                              *(1-(1/(1+math.pow(math.e, -inputs[x])))))
-                errorTerm = inputs[x] * self.currentError * (self.hiddenValues[y]*(1-self.hiddenValues[y]))
-                newWeight = self.inputWeights[(x*self.NODES)+y] + self.alpha * errorTerm
-                print("Old Weight %d: %.2f" % (((x*self.NODES)+y), self.inputWeights[(x*self.NODES)+y]))
-                print("Weight number %d: %.2f" % (((x*self.NODES)+y), newWeight))
-                self.inputWeights[(x*self.NODES)+y] = newWeight
-
+        outputWeightErrors = []
+        hiddenNodeDeltas = []
         for x in range(0,len(self.outputWeights)):
-            #errorTerm = self.hiddenValues[x] * self.currentError * ((1 / (1 + math.pow(math.e, -self.hiddenValues[x])))
-            #                                                * (1 - (1 / (1 + math.pow(math.e, -self.hiddenValues[x])))))
-            errorTerm = self.hiddenValues[x] * self.currentError * (self.currentNeuralOutput*(1 - self.currentNeuralOutput))
-            newWeight = self.outputWeights[x] + self.alpha * errorTerm
-            self.outputWeights[x] = newWeight
+            # get error value of each hidden node (weight)*(delta of output node)
+            outputWeightErrors.append(self.outputWeights[x]*delta)
+            # get delta of each hidden node (hiddenValues = b) (b)(1-b)(err)
+            hiddenNodeDeltas.append(self.hiddenValues[x]*(1-self.hiddenValues[x])*outputWeightErrors[x])
 
-        # for x in range(0,len(self.inputBiasWeights)):
-        #     errorTerm = 1 * self.currentError * ((1 / (1 + math.pow(math.e, -1)))
-        #                                                             * (1 - (1 / (1 + math.pow(math.e, -1)))))
-        #     newWeight = self.inputBiasWeights[x] + self.alpha * errorTerm
-        #     self.inputBiasWeights[x] = newWeight
+        # update input weights
+        for x in range(0, len(self.hiddenValues)):
+            for y in range(0,len(self.inputValues)):
+                #   - (old weight) + (alpha)*(delta of output node)*(input)
+                self.inputWeights[(x*self.INPUTS)+y] = self.inputWeights[(x*self.INPUTS)+y] \
+                    + self.alpha*hiddenNodeDeltas[x]*self.inputValues[y]
+                # print("New Weight %d: %.2f" % (((x*self.INPUTS)+y), self.inputWeights[(x*self.INPUTS)+y]))
 
-        # error printing
-        if self.moveCounter > 1000:
-            self.moveCounter = 0
-            # for nodeWeights in self.inputWeights:
-            # print(self.inputWeights)
-            # print(self.outputWeights)
-            # print(self.inputBiasWeights)
+        # update hidden node bias weights
+        for x in range(0, self.NODES):
+            self.inputBiasWeights[x] = self.inputBiasWeights[x] + self.alpha*hiddenNodeDeltas[x]
+
+        # update output weights
+        for x in range(0,len(self.outputWeights)):
+            self.outputWeights[x] = self.outputWeights[x] + self.alpha*delta*self.hiddenValues[x]
+
+        # update output node bias weight
+        self.outputBiasWeight = self.outputBiasWeight + self.alpha*delta
 
 
 
     def calculateError(self, currentState):
-        self.currentError = self.evaluateState(currentState)-self.getOutputValue(currentState)
-        print(self.currentError)
+        self.outputValue = self.getOutputValue(currentState)
+        # Since self.evaluateState() outputs a range between -1 and 1, fix range to be between 0 and 1
+        expectedValue = (self.evaluateState(currentState)+1)/2
+        self.currentError = expectedValue-self.outputValue
+        # since this is used for every move/state, update moveCounter and moveSum
+        self.moveCounter += 1
+        self.moveSum += self.currentError
+        # if not self.notReady and abs(self.currentError) > 0.03:
+        #     self.notReady = True
+        # if abs(self.currentError) > 0.03:
+            # print(self.currentError)
+
+    def printWeights(self):
+        print("Input Weights:")
+        print(*self.inputWeights, sep=", ")
+        print("Output Weights:")
+        print(*self.outputWeights, sep=", ")
+        print("Input Bias Weights:")
+        print(*self.inputBiasWeights, sep=", ")
+        print("Output Bias Weight:")
+        print(self.outputBiasWeight)
 
     ##
     # getNextState
